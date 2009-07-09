@@ -1,6 +1,13 @@
 = drbman
 
-Description goes here.
+Support for running ruby tasks via drb (druby) on multiple cores and/or systems.
+
+Drbman provides:
+* the infrastructure for pushing ruby code to remote systems,
+* installing remote gems
+* starting and stopping the remote drb server(s)
+* cleaning up the remote system by removing any artifacts used
+
 
 == Copyright
 
