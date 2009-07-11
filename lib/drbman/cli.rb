@@ -35,7 +35,7 @@ class CLI < UserChoices::Command
   def add_choices(builder)
     # don't need to explicitly declare help argument
     builder.add_choice(:version, :type => :boolean, :default => false) do |command_line|
-      command_line.uses_switch('-v', '--version', 'The version of drbman')
+      command_line.uses_switch('-V', '--version', 'The version of drbman')
     end
     builder.add_choice(:quiet, :type => :boolean, :default => false) do |command_line|
       command_line.uses_switch('-q', '--quiet', 'Display error messages only')
