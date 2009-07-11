@@ -36,7 +36,7 @@ class Drbman
   end
   
   def execute
-    puts @user_choices.pretty_inspect
+    @logger.debug { @user_choices.pretty_inspect }
     @user_choices[:hosts].each do |host|
       @hosts[host] = HostMachine.new(host, @logger)
     end
