@@ -1,41 +1,37 @@
 # Command design pattern
 class SieveOfEratosthenes
-  def initialize(n)
+  def initialize(n, choices, logger)
     @n = n.to_i
-    @hosts = ['localhost']
-    @starting_port = 9000
-  end
-  
-  def drb_hosts(hosts, starting_port)
-    @hosts = hosts
-    @starting_port = starting_port
-    @hosts = ['localhost', 'localhost'] if @hosts.blank?
-    @starting_port = 9000 if @starting_port.blank?
+    @choices = choices
+    @logger = logger
+    @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?
+    @choices[:files] = [File.join(File.dirname(__FILE__), 'drb_server')]
   end
   
   def execute
     result = []
-    DrbPool.new(@hosts, @starting_port) do |pool|
-      result = primes(@n, pool)
+    # DrbPool.new(@choices) do |pool|
+    Drbman.new(@logger, @choices) do |drbman|
+      result = primes(@n, drbman)
     end
     result
   end
   
   private
   
-  def primes(n, drb_pool)
+  def primes(n, drbman)
     indices = []
     if n > 2
-      composites = calc_composites(n, drb_pool)
+      composites = calc_composites(n, drbman)
       flat_comps = composites.flatten.uniq
       indices = calc_indices(flat_comps, n)
     end
     indices
   end
 
-  # returns Array with length < n
-  def calc_composites(n, drb_pool)
-    sqr_primes = primes(Math.sqrt(n).to_i, drb_pool)
+  # returns Array
+  def calc_composites(n, drbman)
+    sqr_primes = primes(Math.sqrt(n).to_i, drbman)
     composites = []
     threads = []
     mutex = Mutex.new
@@ -44,7 +40,7 @@ class SieveOfEratosthenes
       # sqr_primes = [2,3]
       # composites = [[2*2, 2*3, 2*4,...,2*9], [3*2, 3*3, 3*4,...,3*6]]
       threads << Thread.new(ip, n) do |value, max|
-        drb_pool.get_object do |prime_helper|
+        drbman.get_object do |prime_helper|
           non_primes = prime_helper.non_primes(value, max)
           mutex.synchronize do
             composites << non_primes

@@ -15,6 +15,8 @@ require 'user-choices'
 require 'thread_pool'
 require 'extlib'
 
+require 'drbman'
+
 # require 'ruby-debug'
 
 include FileUtils::Verbose

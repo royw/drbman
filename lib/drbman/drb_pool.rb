@@ -1,13 +1,15 @@
 class DrbPool
-  def initialize(hosts=['localhost'], starting_port=9000, &block)
-    port = starting_port
+  def initialize(choices, &block)
+    port = choices[:port] || 9000
+    hosts = choices[:hosts] || ['localhost']
+    raise ArgumentError if choices[:run].blank?
     @objects = []
     puts "hosts: #{hosts.inspect}"
-    hosts.each do |host|
-      run_prime_helper = "ruby #{File.expand_path(File.join(File.dirname(__FILE__), 'drb_server/prime_helper.rb'))} #{port}"
-      start_drb(run_prime_helper)
-      port += 1
-    end
+    # hosts.each do |host|
+    #   run_prime_helper = "ruby #{File.join(File.dirname(__FILE__), choices[:run])} #{port}"
+    #   start_drb(run_prime_helper)
+    #   port += 1
+    # end
     sleep 1
     port = starting_port
     hosts.each do |host|
@@ -30,6 +32,14 @@ class DrbPool
     object.in_use = false
   end
   
+  def shutdown
+    @objects.each do |obj|
+      obj.stop_service
+    end
+  end
+  
+  private
+
   def next_object(mutex)
     object = nil
     mutex.synchronize do
@@ -39,17 +49,9 @@ class DrbPool
     object
   end
   
-  def shutdown
-    @objects.each do |obj|
-      obj.stop_service
-    end
-  end
-  
-  private
-
-  def start_drb(commandline)
-    exec(commandline) if fork.nil?
-  end
+  # def start_drb(commandline)
+  #   exec(commandline) if fork.nil?
+  # end
   
   def get_drb_object(machine, port)
     obj = nil

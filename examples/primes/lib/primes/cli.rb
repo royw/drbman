@@ -16,7 +16,8 @@ class CLI < UserChoices::Command
         raise Exception.new('Missing maximum integer argument') if @user_choices[:max_integer].nil?
         elapse_time = elapse do
           app = Primes.new(logger, @user_choices)
-          app.execute
+          primes = app.execute
+          logger.info { "#{primes.length} primes found" }
         end
         puts "elapsed time: #{elapse_time}"
       rescue Exception => e

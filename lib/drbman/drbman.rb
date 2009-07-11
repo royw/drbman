@@ -29,26 +29,53 @@
 # == Notes
 # Uses the Command design pattern
 class Drbman
-  def initialize(logger, choices)
+  def initialize(logger, choices, &block)
     @logger = logger
     @user_choices = choices
     @hosts = {}
-  end
-  
-  def execute
+
     @logger.debug { @user_choices.pretty_inspect }
     @user_choices[:hosts].each do |host|
       @hosts[host] = HostMachine.new(host, @logger)
     end
+    
+    unless block.nil?
+      setup
+      block.call(self)
+      @pool.shutdown unless @pool.nil
+      shutdown
+    end
+  end
+  
+  def get_object(&block)
+    @pool ||= DrbPool.new(@user_choices)
+    @pool.get_object(block)
+  end
+  
+  def setup
+    @user_choices[:cleanup] = false
+    execute
+  end
+  
+  def shutdown
+    @user_choices[:cleanup] = true
+    execute
+  end
+  
+  def execute
     @hosts.each do |name, host_machine|
       host_machine.session do |host|
-        @logger.info { "Setting up: #{host.name}" }
-        check_gems(host)
-        create_directory(host)
-        upload_dirs(host)
-        run_drb_server(host)
-        stop_drb_server(host)
-        cleanup_files(host)
+        unless @user_choices[:cleanup]
+          @logger.info { "Setting up: #{host.name}" }
+          check_gems(host)
+          create_directory(host)
+          upload_dirs(host)
+          run_drb_server(host)
+        else
+          @logger.info { "Cleaning up: #{host.name}" }
+          stop_drb_server(host)
+          cleanup_files(host)
+        end
         @logger.info { '' }
       end
     end
@@ -60,9 +87,9 @@ class Drbman
   # the host machine
   def cleanup_files(host)
     if @user_choices[:cleanup]
-      unless host.dir.blank?
+      unless host.dir.blank? || (host.dir =~ /[\*\?]/)
         @logger.info { "#{host.name}: rm -rf #{host.dir}"}
-        # host.sh("rm -rf #{host.dir}")
+        host.sh("rm -rf #{host.dir}")
       end
     end
   end
