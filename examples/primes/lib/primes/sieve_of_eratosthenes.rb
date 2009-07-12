@@ -4,8 +4,9 @@ class SieveOfEratosthenes
     @n = n.to_i
     @choices = choices
     @logger = logger
-    @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?
-    @choices[:files] = [File.join(File.dirname(__FILE__), 'drb_server')]
+    @choices[:run] = 'ruby drb_server/prime_helper.rb' if @choices[:run].blank?
+    @logger.debug { "dir => #{File.dirname(__FILE__)}"}
+    @choices[:dirs] = [File.join(File.dirname(__FILE__), 'drb_server')]
   end
   
   def execute

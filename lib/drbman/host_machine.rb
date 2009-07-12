@@ -10,22 +10,35 @@
 # the connection until a disconnect() is invoked.
 class HostMachine
   attr_accessor :uuid, :dir
-  attr_reader :name, :host, :user
+  attr_reader :name, :host, :user, :port
   
   def initialize(host_string, logger)
     @name = host_string
     @logger = logger
     @host = 'localhost'
     @user = ENV['USER']
+    @port = 9000
     @password = {:keys => ['~/.ssh/id_dsa']}
     case host_string
+    when /^(\S+)\:(\S+)\@(\S+)\:(\d+)$/
+      @user = $1
+      @password = {:password => $2}
+      @host = $3
+      @port = $4.to_i
     when /^(\S+)\:(\S+)\@(\S+)$/
       @user = $1
       @password = {:password => $2}
       @host = $3
+    when /^(\S+)\@(\S+)\:(\d+)$/
+      @user = $1
+      @host = $2
+      @port = $4.to_i
     when /^(\S+)\@(\S+)$/
       @user = $1
       @host = $2
+    when /^(\S+)\:(\d+)$/
+      @host = $1
+      @port = $4.to_i
     when /^(\S+)$/
       @host = $1
     end

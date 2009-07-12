@@ -35,6 +35,7 @@ Gem::Specification.new do |s|
      "examples/primes/spec/primes_spec.rb",
      "lib/drbman.rb",
      "lib/drbman/cli.rb",
+     "lib/drbman/drb_pool.rb",
      "lib/drbman/drbman.rb",
      "lib/drbman/host_machine.rb",
      "spec/drbman_spec.rb",

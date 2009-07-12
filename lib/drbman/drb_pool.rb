@@ -11,7 +11,6 @@ class DrbPool
     #   port += 1
     # end
     sleep 1
-    port = starting_port
     hosts.each do |host|
       @objects << get_drb_object(host, port)
       port += 1

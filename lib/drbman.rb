@@ -10,6 +10,7 @@ gem 'extlib',           '0.9.12'
 gem 'versionomy',       '0.0.4'
 gem 'net-ssh',          '2.0.11'
 gem 'net-scp',          '1.0.2'
+gem 'daemons',          '1.0.10'
 
 require 'extlib'
 # require 'ruby-debug'
@@ -19,6 +20,7 @@ require 'fileutils'
 require 'user-choices'
 require 'net/ssh'
 require 'net/scp'
+require 'daemons'
 
 include FileUtils::Verbose
 

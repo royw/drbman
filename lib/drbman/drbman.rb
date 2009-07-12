@@ -42,14 +42,14 @@ class Drbman
     unless block.nil?
       setup
       block.call(self)
-      @pool.shutdown unless @pool.nil
+      @pool.shutdown unless @pool.nil?
       shutdown
     end
   end
   
   def get_object(&block)
     @pool ||= DrbPool.new(@user_choices)
-    @pool.get_object(block)
+    @pool.get_object(&block)
   end
   
   def setup
@@ -104,7 +104,7 @@ class Drbman
   # run the drb server start command on the host machine
   def run_drb_server(host)
     unless @user_choices[:run].blank?
-      host.sh(@user_choices[:run])
+      host.sh("cd #{host.dir};#{@user_choices[:run]} #{host.port}") if fork.nil?
     end
   end
   
@@ -114,7 +114,7 @@ class Drbman
     unless @user_choices[:dirs].blank?
       @user_choices[:dirs].each do |name|
         if File.directory?(name)
-          host.upload(name, "#{host.dir}/#{name}")
+          host.upload(name, "#{host.dir}/#{File.basename(name)}")
         else
           @logger.error { "\"#{name}\" is not a directory" }
         end
@@ -139,7 +139,7 @@ class Drbman
 
   def create_directory(host)
     host.uuid = host.sh('uuidgen').strip
-    host.dir = ".drbman/#{host.uuid}".strip
+    host.dir = "~/.drbman/#{host.uuid}".strip
     host.sh("mkdir -p #{host.dir}")
     @logger.info { "host directory: #{host.dir}" }
   end
