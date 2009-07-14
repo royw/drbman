@@ -23,7 +23,7 @@ class Drbman
   # @option choices [Integer] :port default port number used to assign to hosts without a port number.
   #  The port number is incremented for each host.  This defaults to 9000
   # @option choices [Array<String>] :gems array of gem names to verify are installed on the host machine.
-  #  Note, 'daemon', 'rubygems', and 'drb' are always added to this array.
+  #  Note, 'daemons' is always added to this array.
   # @yield [Drbman]
   # @example Usage
   # Drbman.new(logger, choices) do |drbman|
@@ -40,7 +40,7 @@ class Drbman
     choices[:port] ||= 9000
     choices[:hosts] ||= ['localhost']
     choices[:gems] ||= []
-    choices[:gems] = (choices[:gems] + ['daemons', 'rubygems', 'drb']).uniq.compact
+    choices[:gems] = (choices[:gems] + ['daemons']).uniq.compact
     
     raise ArgumentError.new('Missing choices[:run]') if choices[:run].blank?
     raise ArgumentError.new('Missing choices[:hosts]') if choices[:hosts].blank?
@@ -107,7 +107,6 @@ class Drbman
             else
               cleanup(host)
             end
-            @logger.info { '' }
           rescue Exception => e
             @logger.error { e }
             @logger.error { e.backtrace.join("\n") }
@@ -116,7 +115,7 @@ class Drbman
       end
     end
     threads.each {|thrd| thrd.join}
-    sleep 2 unless @user_choices[:cleanup]
+    sleep 1 unless @user_choices[:cleanup]
   end
   
   def cleanup(host)
@@ -139,7 +138,7 @@ class Drbman
   def cleanup_files(host)
     if @user_choices[:cleanup]
       unless host.dir.blank? || (host.dir =~ /[\*\?]/)
-        @logger.info { "#{host.name}: rm -rf #{host.dir}"}
+        @logger.debug { "#{host.name}: rm -rf #{host.dir}"}
         host.sh("rm -rf #{host.dir}")
       end
     end
@@ -198,7 +197,7 @@ class Drbman
     host.uuid = host.sh('uuidgen').strip
     host.dir = "~/.drbman/#{host.uuid}".strip
     host.sh("mkdir -p #{host.dir}")
-    @logger.info { "host directory: #{host.dir}" }
+    @logger.debug { "host directory: #{host.dir}" }
   end
   
 end

@@ -18,8 +18,9 @@ class CLI < UserChoices::Command
           app = Primes.new(logger, @user_choices)
           primes = app.execute
           logger.info { "#{primes.length} primes found" }
+          logger.info { "calculation elapsed time: #{app.primes_elapse_time}" }
         end
-        puts "elapsed time: #{elapse_time}"
+        logger.info { "total elapsed time: #{elapse_time}" }
       rescue Exception => e
         logger.error { e.to_s }
         logger.error { e.backtrace.join("\n") }
@@ -27,16 +28,6 @@ class CLI < UserChoices::Command
     end
   end
   
-  def elapse(&block)
-    seconds = 0
-    unless block.nil?
-      start_time = Time.now
-      block.call
-      seconds = Time.now - start_time
-    end
-    seconds
-  end
-
   def add_sources(builder)
     builder.add_source(CommandLineSource, :usage, "Usage #{$0} [options] INTEGER\nwhere INTEGER is the number to find all of the primes below.")
     builder.add_source(EnvironmentSource, :with_prefix, "primes_")

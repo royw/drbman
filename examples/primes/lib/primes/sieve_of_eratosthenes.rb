@@ -1,5 +1,6 @@
 # Command design pattern
 class SieveOfEratosthenes
+  attr_reader :primes_elapse_time
   def initialize(n, choices, logger)
     @n = n.to_i
     @choices = choices
@@ -10,7 +11,7 @@ class SieveOfEratosthenes
     
     # set the file to be ran that contains the drb server
     @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?
-    @choices[:gems] = ['drb', 'log4r', 'rubygems', 'daemons']
+    @choices[:gems] = ['log4r']
     
     # specify the directories to copy to the host machine
     @choices[:dirs] = [File.join(File.dirname(__FILE__), '../drb_server')]
@@ -19,7 +20,9 @@ class SieveOfEratosthenes
   def execute
     result = []
     Drbman.new(@logger, @choices) do |drbman|
-      result = primes(@n, drbman)
+      @primes_elapse_time = elapse do
+        result = primes(@n, drbman)
+      end
     end
     result
   end
@@ -49,7 +52,7 @@ class SieveOfEratosthenes
       # parallelize via threads
       # then use the drb object within the thread
       threads << Thread.new(ip, n) do |value, max|
-        @logger.debug { "thread(#{ip}, #{n})" }
+        # @logger.debug { "thread(#{ip}, #{n})" }
         drbman.get_object do |prime_helper|
           # @logger.debug { "prime_helper.name => #{prime_helper.name}" }
           non_primes = prime_helper.non_primes(value, max)

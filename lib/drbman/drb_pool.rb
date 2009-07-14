@@ -2,7 +2,7 @@
 # A pool of drb objects
 class DrbPool
   # @todo change to threaded
-  THREADED = false
+  THREADED = true
   
   # Create the pool of drb objects.
   # @param [Array<HostMachine>] the host_machine instances to use to populate the pool of drb objects

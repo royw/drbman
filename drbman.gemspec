@@ -28,6 +28,7 @@ Gem::Specification.new do |s|
      "examples/primes/lib/drb_server/prime_helper.rb",
      "examples/primes/lib/primes.rb",
      "examples/primes/lib/primes/cli.rb",
+     "examples/primes/lib/primes/kernel_extensions.rb",
      "examples/primes/lib/primes/primes.rb",
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/reports/calltree.profile",
@@ -40,6 +41,7 @@ Gem::Specification.new do |s|
      "lib/drbman/drbman.rb",
      "lib/drbman/host_machine.rb",
      "spec/drbman_spec.rb",
+     "spec/host_machine_spec.rb",
      "spec/spec_helper.rb"
   ]
   s.homepage = %q{http://github.com/royw/drbman}
@@ -53,6 +55,7 @@ Gem::Specification.new do |s|
      "spec/spec_helper.rb",
      "examples/primes/lib/drb_server/prime_helper.rb",
      "examples/primes/lib/primes/cli.rb",
+     "examples/primes/lib/primes/kernel_extensions.rb",
      "examples/primes/lib/primes/primes.rb",
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/lib/primes.rb",
