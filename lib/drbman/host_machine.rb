@@ -1,6 +1,5 @@
 # HostMachine is used to interface with a host machine
-# == Synopsis
-# == Usage
+# 
 # == Notes
 # A host machine may be either another machine or the localhost.
 # By supporting localhost, it is likely that the process will
@@ -194,27 +193,19 @@ class HostMachine
 
   private
   
+  # Does the local directory tree and the remote directory tree contain the same files?
+  # Calculates a MD5 hash for each file then compares the hashes
+  # @param [String] local_path local directory
+  # @param [String] remote_path remote directory
   def same_files?(local_path, remote_path)
-    md5 = {}
-    @ssh.exec!(md5_command_line(remote_path)).split("\n").each do |line|
-      sum, filename = line.split(' ')
-      md5[filename] = sum
-    end
-    `#{md5_command_line(local_path)}`.split("\n").each do |line|
-      sum, filename = line.split(' ')
-      if md5[filename].nil?
-        md5[filename] = sum
-      else
-        if md5[filename] == sum
-          md5.delete(filename) 
-        end
-      end
-    end
-    md5.empty?
+    remote_md5 = @ssh.exec!(md5_command_line(remote_path))
+    local_md5 = `#{md5_command_line(local_path)}`
+    @logger.debug { "same_files? local_md5 => #{local_md5}, remote_md5 => #{remote_md5}"}
+    remote_md5 == local_md5
   end
   
   def md5_command_line(dirname)
-    line = "find #{dirname} -type f -exec ruby -e \"require 'digest/md5';puts Digest::MD5.hexdigest(open('{}').read)+' '+\"'{}'\"\" \;"
+    line = "cat \`find #{dirname} -type f | sort\` | ruby -e \"require 'digest/md5';puts Digest::MD5.hexdigest(STDIN.read)\""
     @logger.debug { line }
     line
   end

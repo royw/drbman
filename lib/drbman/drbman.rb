@@ -34,7 +34,8 @@ class Drbman
   def initialize(logger, choices, &block)
     @logger = logger
     @user_choices = choices
-    # @
+    
+    # @hosts[machine_description] = HostMachine instance
     @hosts = {}
 
     choices[:port] ||= 9000
@@ -46,16 +47,13 @@ class Drbman
     raise ArgumentError.new('Missing choices[:hosts]') if choices[:hosts].blank?
     raise ArgumentError.new('Missing choices[:dirs]') if choices[:dirs].blank?
     
-    port = choices[:port]
-
     # populate the @hosts hash.  key => host machine description, value => HostMachine instance
+    port = choices[:port]
     @user_choices[:hosts].each do |host|
       host = "#{host}:#{port}" unless host =~ /\:\d+\s*$/
       @hosts[host] = HostMachine.new(host, @logger)
       port += 1
     end
-    
-    # @object_mutex = Mutex.new
     
     unless block.nil?
       setup
@@ -77,36 +75,32 @@ class Drbman
   # @example Usage
   #   drbman.get_object {|obj| obj.do_something}
   def get_object(&block)
-    obj = nil
-    # @object_mutex.synchronize do
-      obj = @pool.get_object(&block)
-    # end
-    obj
+    @pool.get_object(&block)
   end
   
   private
-  
+
+  # setup the host machine drb servers
   def setup
-    @user_choices[:cleanup] = false
-    execute
+    execute(:startup)
+    sleep 1  # give the drb servers a little time to get running
   end
   
+  # stop and remove the host machine drb servers
   def shutdown
-    @user_choices[:cleanup] = true
-    execute
+    execute(:cleanup)
   end
   
-  def execute
+  # @param [Symbol,String] cmd the command to run for all host machines.  Should be either :startup or :cleanup
+  # @raise [ArgumentError] if cmd parameter is not :startup or :cleanup
+  def execute(cmd)
+    raise ArgumentError.new("invalid argument value (#{cmd.to_s}), must be either :startup or :cleanup") unless [:startup, :cleanup].include?(cmd)
     threads = []
     @hosts.each do |name, host_machine|
       host_machine.session do |host_obj|
         threads << Thread.new(host_obj) do |host|
           begin
-            unless @user_choices[:cleanup]
-              startup(host)
-            else
-              cleanup(host)
-            end
+            send(cmd, host)
           rescue Exception => e
             @logger.error { e }
             @logger.error { e.backtrace.join("\n") }
@@ -115,15 +109,10 @@ class Drbman
       end
     end
     threads.each {|thrd| thrd.join}
-    sleep 1 unless @user_choices[:cleanup]
   end
   
-  def cleanup(host)
-    @logger.info { "Cleaning up: #{host.name}" }
-    stop_drb_server(host)
-    cleanup_files(host)
-  end
-  
+  # Setup the drb server on the given host then start it
+  # @param [HostMachine] host the host machine
   def startup(host)
     @logger.info { "Setting up: #{host.name}" }
     check_gems(host)
@@ -133,29 +122,40 @@ class Drbman
     run_drb_server(host)
   end
   
+  # Stop the drb server on the given host then remove the drb files from the host
+  # @param [HostMachine] host the host machine
+  def cleanup(host)
+    @logger.info { "Cleaning up: #{host.name}" }
+    stop_drb_server(host)
+    cleanup_files(host)
+  end
+  
   # remove the host directory and any files in it from
   # the host machine
+  # @param [HostMachine] host the host machine
   def cleanup_files(host)
-    if @user_choices[:cleanup]
-      unless host.dir.blank? || (host.dir =~ /[\*\?]/)
-        @logger.debug { "#{host.name}: rm -rf #{host.dir}"}
-        host.sh("rm -rf #{host.dir}")
-      end
+    unless host.dir.blank? || (host.dir =~ /[\*\?]/)
+      @logger.debug { "#{host.name}: rm -rf #{host.dir}"}
+      host.sh("rm -rf #{host.dir}")
     end
   end
   
   # run the drb server stop command on the host machine
+  # @param [HostMachine] host the host machine
   def stop_drb_server(host)
-      host.sh("cd #{host.dir};ruby #{host.controller} stop")
+    host.sh("cd #{host.dir};ruby #{host.controller} stop")
   end
   
   # run the drb server start command on the host machine
+  # @param [HostMachine] host the host machine
   def run_drb_server(host)
     unless host.controller.blank?
       host.sh("cd #{host.dir};ruby #{host.controller} start -- #{host.machine} #{host.port}")
     end
   end
-  
+
+  # Create the daemon controller on the host machine
+  # @param [HostMachine] host the host machine
   def create_controller(host)
     unless @user_choices[:run].blank?
       host.controller = File.basename(@user_choices[:run], '.*') + '_controller.rb'
@@ -166,6 +166,7 @@ class Drbman
   
   # copy files from local directories to the created 
   # directory on the host machine
+  # @param [HostMachine] host the host machine
   def upload_dirs(host)
     unless @user_choices[:dirs].blank?
       @user_choices[:dirs].each do |name|
@@ -179,6 +180,7 @@ class Drbman
   end
   
   # check if the required gems are installed on the host
+  # @param [HostMachine] host the host machine
   def check_gems(host)
     unless @user_choices[:gems].blank?
       @user_choices[:gems].each do |gem_name|
@@ -193,6 +195,11 @@ class Drbman
     end
   end
 
+  # Create the directory that will hold the drb files.
+  # The directory created is ~/.drbman/{uuid}
+  # Note, requires 'uuidgen' in the path on the host machine
+  # @todo maybe generate a random uuid locally instead
+  # @param [HostMachine] host the host machine
   def create_directory(host)
     host.uuid = host.sh('uuidgen').strip
     host.dir = "~/.drbman/#{host.uuid}".strip

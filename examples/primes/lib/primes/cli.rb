@@ -2,10 +2,16 @@ class CLI < UserChoices::Command
   include UserChoices
   include Singleton
   
+  # The CLI class uses the command design pattern.
+  # This is a class accessor helper
+  # @example
+  #   CLI.execute
   def self.execute
     instance.execute
   end
   
+  # The CLI class uses the command design pattern
+  # This is the main entry point
   def execute
     if @user_choices[:version]
       puts IO.read(File.join(File.dirname(__FILE__), '../../VERSION')).strip
@@ -28,12 +34,16 @@ class CLI < UserChoices::Command
     end
   end
   
+  protected
+  
+  # @param builder (see UserChoices::Command#add_sources)
   def add_sources(builder)
     builder.add_source(CommandLineSource, :usage, "Usage #{$0} [options] INTEGER\nwhere INTEGER is the number to find all of the primes below.")
     builder.add_source(EnvironmentSource, :with_prefix, "primes_")
     builder.add_source(YamlConfigFileSource, :from_file, ".primes-config.yaml")
   end
 
+  # @param builder (see UserChoices::Command#add_choices)
   def add_choices(builder)
     # don't need to explicitly declare help argument
     builder.add_choice(:version, :type => :boolean, :default => false) do |command_line|
@@ -56,8 +66,8 @@ class CLI < UserChoices::Command
     end
   end
 
-  # == Synopsis
   # Initial setup of logger
+  # @return [Logger] the logger to use
   def setup_logger
     logger = Log4r::Logger.new('primes')
     logger.outputters = Log4r::StdoutOutputter.new(:console)
