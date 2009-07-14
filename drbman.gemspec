@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{drbman}
-  s.version = "0.0.0"
+  s.version = "0.0.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Roy Wright"]
@@ -32,6 +32,7 @@ Gem::Specification.new do |s|
      "examples/primes/lib/primes/primes.rb",
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/spec/primes_spec.rb",
+     "examples/primes/spec/spec_helper.rb",
      "lib/drbman.rb",
      "lib/drbman/cli.rb",
      "lib/drbman/drb_pool.rb",
