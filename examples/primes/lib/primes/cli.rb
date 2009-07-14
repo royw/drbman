@@ -71,7 +71,6 @@ class CLI < UserChoices::Command
     logger = Log4r::Logger.new('primes')
     logger.outputters = Log4r::StdoutOutputter.new(:console)
     Log4r::Outputter[:console].formatter  = Log4r::PatternFormatter.new(:pattern => "%m")
-    logger.level = Log4r::DEBUG
     logger.level = Log4r::INFO
     logger.level = Log4r::WARN if @user_choices[:quiet]
     logger.level = Log4r::DEBUG if @user_choices[:debug]

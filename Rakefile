@@ -10,12 +10,12 @@ begin
     gem.homepage = "http://github.com/royw/drbman"
     gem.authors = ["Roy Wright"]
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
-    gem.add_dependency('log4r',         '1.0.5')
-    gem.add_dependency('user-choices',  '1.1.6')
-    gem.add_dependency('extlib',        '0.9.12')
-    gem.add_dependency('versionomy',    '0.0.4')
-    gem.add_dependency('net-ssh',       '2.0.11')
-    gem.add_dependency('net-scp',       '1.0.2')
+    gem.add_dependency('log4r',         '>=1.0.5')
+    gem.add_dependency('user-choices',  '>=1.1.6')
+    gem.add_dependency('extlib',        '>=0.9.12')
+    gem.add_dependency('versionomy',    '>=0.0.4')
+    gem.add_dependency('net-ssh',       '>=2.0.11')
+    gem.add_dependency('net-scp',       '>=1.0.2')
   end
 
 rescue LoadError

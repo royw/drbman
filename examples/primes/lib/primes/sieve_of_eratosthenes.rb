@@ -4,14 +4,20 @@ class SieveOfEratosthenes
     @n = n.to_i
     @choices = choices
     @logger = logger
-    @choices[:run] = 'ruby drb_server/prime_helper.rb' if @choices[:run].blank?
-    @logger.debug { "dir => #{File.dirname(__FILE__)}"}
-    @choices[:dirs] = [File.join(File.dirname(__FILE__), 'drb_server')]
+    
+    # we need at least one host that has a drb server running
+    @choices[:hosts] = ['localhost'] if @choices[:hosts].blank?
+    
+    # set the file to be ran that contains the drb server
+    @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?
+    @choices[:gems] = ['drb', 'log4r', 'rubygems', 'daemons']
+    
+    # specify the directories to copy to the host machine
+    @choices[:dirs] = [File.join(File.dirname(__FILE__), '../drb_server')]
   end
   
   def execute
     result = []
-    # DrbPool.new(@choices) do |pool|
     Drbman.new(@logger, @choices) do |drbman|
       result = primes(@n, drbman)
     end
@@ -30,6 +36,9 @@ class SieveOfEratosthenes
     indices
   end
 
+  # when n = 20
+  # sqr_primes = [2,3]
+  # composites = [[2*2, 2*3, 2*4,...,2*9], [3*2, 3*3, 3*4,...,3*6]]
   # returns Array
   def calc_composites(n, drbman)
     sqr_primes = primes(Math.sqrt(n).to_i, drbman)
@@ -37,11 +46,12 @@ class SieveOfEratosthenes
     threads = []
     mutex = Mutex.new
     sqr_primes.each do |ip|
-      # when n = 20
-      # sqr_primes = [2,3]
-      # composites = [[2*2, 2*3, 2*4,...,2*9], [3*2, 3*3, 3*4,...,3*6]]
+      # parallelize via threads
+      # then use the drb object within the thread
       threads << Thread.new(ip, n) do |value, max|
+        @logger.debug { "thread(#{ip}, #{n})" }
         drbman.get_object do |prime_helper|
+          # @logger.debug { "prime_helper.name => #{prime_helper.name}" }
           non_primes = prime_helper.non_primes(value, max)
           mutex.synchronize do
             composites << non_primes

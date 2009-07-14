@@ -9,13 +9,16 @@
 # Once HostMachine opens an ssh connection, it does not close
 # the connection until a disconnect() is invoked.
 class HostMachine
-  attr_accessor :uuid, :dir
-  attr_reader :name, :host, :user, :port
+  attr_accessor :uuid, :dir, :controller
+  attr_reader :name, :machine, :user, :port
   
+  # @param [String] host_string describes the host to connect to.
+  #  The format is "{user{:password}@}machine{:port}"
+  # @param [Logger] logger the logger to use
   def initialize(host_string, logger)
     @name = host_string
     @logger = logger
-    @host = 'localhost'
+    @machine = 'localhost'
     @user = ENV['USER']
     @port = 9000
     @password = {:keys => ['~/.ssh/id_dsa']}
@@ -23,34 +26,46 @@ class HostMachine
     when /^(\S+)\:(\S+)\@(\S+)\:(\d+)$/
       @user = $1
       @password = {:password => $2}
-      @host = $3
+      @machine = $3
       @port = $4.to_i
     when /^(\S+)\:(\S+)\@(\S+)$/
       @user = $1
       @password = {:password => $2}
-      @host = $3
+      @machine = $3
     when /^(\S+)\@(\S+)\:(\d+)$/
       @user = $1
-      @host = $2
-      @port = $4.to_i
+      @machine = $2
+      @port = $3.to_i
     when /^(\S+)\@(\S+)$/
       @user = $1
-      @host = $2
+      @machine = $2
     when /^(\S+)\:(\d+)$/
-      @host = $1
-      @port = $4.to_i
+      @machine = $1
+      @port = $2.to_i
     when /^(\S+)$/
-      @host = $1
+      @machine = $1
     end
     @ssh = nil
   end
   
+  # Connect to the host, execute the given block, then disconnect from the host
+  # @yield [HostMachine]
+  # @example
+  # host_machine = HostMachine.new('localhost', @logger)
+  # host_machine.session do |host|
+  #   host.upload(local_dir, "#{host.dir}/#{File.basename(local_dir)}")
+  #   @logger.debug { host.sh("ls -lR #{host.dir}") }
+  # end
   def session(&block)
     connect
     yield self
     disconnect
   end
   
+  # upload a directory structure to the host machine.
+  # @param [String] local_src the source directory on the local machine
+  # @param [String] remote_dest the destination directory on the host machine
+  # @raise [Exception] if the files are not copied
   def upload(local_src, remote_dest)
     @logger.debug { "upload(\"#{local_src}\", \"#{remote_dest}\")" }
     connect
@@ -68,47 +83,84 @@ class HostMachine
     end
   end
   
+  # download a directory structure from the host machine.
+  # @param [String] remote_src the source directory on the host machine
+  # @param [String] local_dest the destination directory on the local machine
+  # @raise [Exception] if the files are not copied
   def download(remote_src, local_dest)
     connect
     result = nil
     unless @ssh.nil?
-      @ssh.scp.download!(local_src, remote_dest)
+      begin
+        @ssh.scp.download!(local_src, remote_dest, :recursive => true) do |ch, name, sent, total|
+          @logger.debug { "#{name}: #{sent}/#{total}" }
+        end
+        @ssh.loop
+      rescue Exception => e
+        # only raise the exception if the files differ
+        raise e unless same_files?(local_dest, remote_src)
+      end
     end
   end
-  
-  def sh(command)
+
+  # run a command on the host machine
+  # Note that the environment on the host machine is the default environment instead
+  # of the user's environment.  So by default we try to source ~/.profile and ~/.bashrc
+  #
+  # @param [String] command the command to run
+  # @param [Hash] opts
+  # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
+  def sh(command, opts={})
     @logger.debug { "sh \"#{command}\""}
+    if opts[:source].blank?
+      opts[:source] = ['~/.profile', '~/.bashrc']
+    end
     connect
     result = nil
     unless @ssh.nil?
-      result = @ssh.exec!("source ~/.profile && #{command}")
-      # buf = []
-      # @ssh.open_channel do |channel|
-      #   channel.request_pty do |ch, success|
-      #     # @logger.debug { "request_pty => #{success.inspect}" }
-      #   end
-      #   channel.exec("source ~/.profile && #{command}") do |ch, success|
-      #     ch.on_data do |ch, data|
-      #       # puts data
-      #       buf << data
-      #     end
-      #   end
-      # end
-      # @ssh.loop
-      # # p ['buf', buf]
-      # result = buf.compact.join('')
+      if @pre_commands.nil?
+        @pre_commands = []
+        opts[:source].each do |name|
+          ls_out = @ssh.exec!("ls #{name}")
+          @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
+        end
+      end
+      commands = @pre_commands.clone
+      commands << command
+      command_line = commands.join(' && ')
+      result = @ssh.exec!(command_line)
     end
     result
   end
   
-  def sudo(command)
+  # run a command as the superuser on the host machine
+  # Note that the environment on the host machine is the default environment instead
+  # of the user's environment.  So by default we try to source ~/.profile and ~/.bashrc
+  #
+  # @param [String] command the command to run
+  # @param [Hash] opts
+  # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
+  def sudo(command, opts={})
     @logger.debug { "sudo \"#{command}\""}
+    if opts[:source].blank?
+      opts[:source] = ['~/.profile', '~/.bashrc']
+    end
     connect
     result = nil
     unless @ssh.nil?
       buf = []
       @ssh.open_channel do |channel|
-        channel.exec("source ~/.profile && sudo -p 'sudo password: ' #{command}") do |ch, success|
+        if @pre_commands.nil?
+          @pre_commands = []
+          opts[:source].each do |name|
+            ls_out = @ssh.exec!("ls #{name}")
+            @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
+          end
+        end
+        commands = @pre_commands.clone
+        commands << "sudo -p 'sudo password: ' #{command}"
+        command_line = commands.join(' && ')
+        channel.exec(command_line) do |ch, success|
           ch.on_data do |ch, data|
             if data =~ /sudo password: /
               ch.send_data("#{@password[:password]}\n")
@@ -123,11 +175,16 @@ class HostMachine
     end
     result
   end
-  
+
+  # connect to the host machine
   def connect
-    @ssh ||= Net::SSH.start(@host, @user, @password)
+    if @ssh.nil?
+      @ssh = Net::SSH.start(@machine, @user, @password)
+      # @ssh.forward.local(@port, @machine, @port)
+    end
   end
   
+  # disconnect from the host machine
   def disconnect
     if @ssh
       @ssh.close

@@ -10,47 +10,81 @@
 # the project by removing the files installed onto the
 # host machine.
 #
-# == Usage
-# app = Drbman.new(logger, choices)
-# app.execute
-#
-# where
-# logger is a standard logger like log4r
-# choice behaves like a hash (ex: a UserChoices instance)
-#
-# The supported choices are:
-# :hosts => Array of Strings ['{user{:password}@}machine',...]
-# :files => String local path to files to copy to host machine
-# :gems => Array of Strings containing gem names ['gem_name',...]
-# :run => String command line to run to start drb server on host machine
-# :terminate => String command line to run to stop drb server on host machine
-# :cleanup => Boolean if true, then remove the directory used on the host machine
-#
 # == Notes
 # Uses the Command design pattern
 class Drbman
+  # @param [Logger] logger the logger
+  # @param [UserChoices,Hash] choices
+  # @option choices [Array<String>] :dirs array of local directories to copy to the host machines.  REQUIRED
+  # @option choices [String] :run the name of the file to run on the host machine.  REQUIRED
+  #  This file should start the drb server.  Note, this file will be daemonized before running.
+  # @option choices [Array<String>] :hosts array of host machine descriptions "{user{:password}@}machine{:port}"
+  #  This defaults to ['localhost']
+  # @option choices [Integer] :port default port number used to assign to hosts without a port number.
+  #  The port number is incremented for each host.  This defaults to 9000
+  # @option choices [Array<String>] :gems array of gem names to verify are installed on the host machine.
+  #  Note, 'daemon', 'rubygems', and 'drb' are always added to this array.
+  # @yield [Drbman]
+  # @example Usage
+  # Drbman.new(logger, choices) do |drbman|
+  #   drbman.get_object do |obj|
+  #     obj.do_something
+  #   end
+  # end
   def initialize(logger, choices, &block)
     @logger = logger
     @user_choices = choices
+    # @
     @hosts = {}
 
-    @logger.debug { @user_choices.pretty_inspect }
+    choices[:port] ||= 9000
+    choices[:hosts] ||= ['localhost']
+    choices[:gems] ||= []
+    choices[:gems] = (choices[:gems] + ['daemons', 'rubygems', 'drb']).uniq.compact
+    
+    raise ArgumentError.new('Missing choices[:run]') if choices[:run].blank?
+    raise ArgumentError.new('Missing choices[:hosts]') if choices[:hosts].blank?
+    raise ArgumentError.new('Missing choices[:dirs]') if choices[:dirs].blank?
+    
+    port = choices[:port]
+
+    # populate the @hosts hash.  key => host machine description, value => HostMachine instance
     @user_choices[:hosts].each do |host|
+      host = "#{host}:#{port}" unless host =~ /\:\d+\s*$/
       @hosts[host] = HostMachine.new(host, @logger)
+      port += 1
     end
+    
+    # @object_mutex = Mutex.new
     
     unless block.nil?
       setup
-      block.call(self)
-      @pool.shutdown unless @pool.nil?
-      shutdown
+      begin
+        @pool = DrbPool.new(@hosts, @logger)
+        block.call(self)
+      rescue Exception => e
+        @logger.error { e }
+        @logger.error { e.backtrace.join("\n") }
+      ensure
+        @pool.shutdown unless @pool.nil?
+        shutdown
+      end
     end
   end
   
+  # Use an object from the pool
+  # @yield [DRbObject]
+  # @example Usage
+  #   drbman.get_object {|obj| obj.do_something}
   def get_object(&block)
-    @pool ||= DrbPool.new(@user_choices)
-    @pool.get_object(&block)
+    obj = nil
+    # @object_mutex.synchronize do
+      obj = @pool.get_object(&block)
+    # end
+    obj
   end
+  
+  private
   
   def setup
     @user_choices[:cleanup] = false
@@ -63,25 +97,42 @@ class Drbman
   end
   
   def execute
+    threads = []
     @hosts.each do |name, host_machine|
-      host_machine.session do |host|
-        unless @user_choices[:cleanup]
-          @logger.info { "Setting up: #{host.name}" }
-          check_gems(host)
-          create_directory(host)
-          upload_dirs(host)
-          run_drb_server(host)
-        else
-          @logger.info { "Cleaning up: #{host.name}" }
-          stop_drb_server(host)
-          cleanup_files(host)
+      host_machine.session do |host_obj|
+        threads << Thread.new(host_obj) do |host|
+          begin
+            unless @user_choices[:cleanup]
+              startup(host)
+            else
+              cleanup(host)
+            end
+            @logger.info { '' }
+          rescue Exception => e
+            @logger.error { e }
+            @logger.error { e.backtrace.join("\n") }
+          end
         end
-        @logger.info { '' }
       end
     end
+    threads.each {|thrd| thrd.join}
+    sleep 2 unless @user_choices[:cleanup]
   end
   
-  private
+  def cleanup(host)
+    @logger.info { "Cleaning up: #{host.name}" }
+    stop_drb_server(host)
+    cleanup_files(host)
+  end
+  
+  def startup(host)
+    @logger.info { "Setting up: #{host.name}" }
+    check_gems(host)
+    create_directory(host)
+    upload_dirs(host)
+    create_controller(host)
+    run_drb_server(host)
+  end
   
   # remove the host directory and any files in it from
   # the host machine
@@ -96,15 +147,21 @@ class Drbman
   
   # run the drb server stop command on the host machine
   def stop_drb_server(host)
-    unless @user_choices[:stop].blank?
-      host.sh(@user_choices[:stop])
-    end
+      host.sh("cd #{host.dir};ruby #{host.controller} stop")
   end
   
   # run the drb server start command on the host machine
   def run_drb_server(host)
+    unless host.controller.blank?
+      host.sh("cd #{host.dir};ruby #{host.controller} start -- #{host.machine} #{host.port}")
+    end
+  end
+  
+  def create_controller(host)
     unless @user_choices[:run].blank?
-      host.sh("cd #{host.dir};#{@user_choices[:run]} #{host.port}") if fork.nil?
+      host.controller = File.basename(@user_choices[:run], '.*') + '_controller.rb'
+      controller = "require 'rubygems' ; require 'daemons' ; Daemons.run('#{@user_choices[:run]}')"
+      host.sh("cd #{host.dir};echo \"#{controller}\" > #{host.controller}")
     end
   end
   

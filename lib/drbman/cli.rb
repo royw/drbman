@@ -43,12 +43,12 @@ class CLI < UserChoices::Command
     builder.add_choice(:debug, :type => :boolean, :default => false) do |command_line|
       command_line.uses_switch('-v', '--verbose', 'Display debug messages')
     end
-    builder.add_choice(:pretend, :type => :boolean, :default => false) do |command_line|
-      command_line.uses_switch('-p', '--pretend', 'Pretend to run commands')
-    end
-    builder.add_choice(:cleanup, :type => :boolean, :default => false) do |command_line|
-      command_line.uses_switch('-c', '--cleanup', 'Removes any files installed on the host machine(s)')
-    end
+    # builder.add_choice(:pretend, :type => :boolean, :default => false) do |command_line|
+    #   command_line.uses_switch('-p', '--pretend', 'Pretend to run commands')
+    # end
+    # builder.add_choice(:cleanup, :type => :boolean, :default => false) do |command_line|
+    #   command_line.uses_switch('-c', '--cleanup', 'Removes any files installed on the host machine(s)')
+    # end
     builder.add_choice(:hosts, :type => [:string], :default => []) do |command_line|
       command_line.uses_option('-H', '--hosts "HOST,HOST"', 'Comma separated account URLs, ex: "{user{:pass}@}machine1{,{user{:pass}@}machine2}"')
     end
@@ -56,11 +56,11 @@ class CLI < UserChoices::Command
       command_line.uses_option('-d', '--dirs "PATH,PATH"', "Comma separated paths to directories to copy to the host machine(s)")
     end
     builder.add_choice(:run, :type => :string, :default => nil) do |command_line|
-      command_line.uses_option('-r', '--run "COMMAND"', "The command to run that starts the drb server")
+      command_line.uses_option('-r', '--run "COMMAND"', "The ruby file that starts the drb server")
     end
-    builder.add_choice(:stop, :type => :string, :default => nil) do |command_line|
-      command_line.uses_option('-t', '--terminate "COMMAND"', "The command to run that stops the drb server")
-    end
+    # builder.add_choice(:stop, :type => :string, :default => nil) do |command_line|
+    #   command_line.uses_option('-t', '--terminate "COMMAND"', "The command to run that stops the drb server")
+    # end
     builder.add_choice(:gems, :type => [:string], :default => []) do |command_line|
       command_line.uses_option('-g', '--gems "GEM,GEM"', "Gems that have to be installed on the host machine")
     end

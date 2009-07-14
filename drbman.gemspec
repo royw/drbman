@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Roy Wright"]
-  s.date = %q{2009-07-11}
+  s.date = %q{2009-07-13}
   s.default_executable = %q{drbman}
   s.email = %q{roy@wright.org}
   s.executables = ["drbman"]
@@ -22,11 +22,12 @@ Gem::Specification.new do |s|
      "Rakefile",
      "VERSION",
      "bin/drbman",
+     "drbman.gemspec",
      "examples/primes/VERSION",
      "examples/primes/bin/primes",
+     "examples/primes/lib/drb_server/prime_helper.rb",
      "examples/primes/lib/primes.rb",
      "examples/primes/lib/primes/cli.rb",
-     "examples/primes/lib/primes/drb_server/prime_helper.rb",
      "examples/primes/lib/primes/primes.rb",
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/reports/calltree.profile",
@@ -48,9 +49,10 @@ Gem::Specification.new do |s|
   s.summary = %q{Support for running ruby tasks via drb (druby) on multiple cores and/or systems.}
   s.test_files = [
     "spec/drbman_spec.rb",
+     "spec/host_machine_spec.rb",
      "spec/spec_helper.rb",
+     "examples/primes/lib/drb_server/prime_helper.rb",
      "examples/primes/lib/primes/cli.rb",
-     "examples/primes/lib/primes/drb_server/prime_helper.rb",
      "examples/primes/lib/primes/primes.rb",
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/lib/primes.rb",
@@ -62,26 +64,26 @@ Gem::Specification.new do |s|
     s.specification_version = 3
 
     if Gem::Version.new(Gem::RubyGemsVersion) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<log4r>, ["= 1.0.5"])
-      s.add_runtime_dependency(%q<user-choices>, ["= 1.1.6"])
-      s.add_runtime_dependency(%q<extlib>, ["= 0.9.12"])
-      s.add_runtime_dependency(%q<versionomy>, ["= 0.0.4"])
-      s.add_runtime_dependency(%q<net-ssh>, ["= 2.0.11"])
-      s.add_runtime_dependency(%q<net-scp>, ["= 1.0.2"])
+      s.add_runtime_dependency(%q<log4r>, [">= 1.0.5"])
+      s.add_runtime_dependency(%q<user-choices>, [">= 1.1.6"])
+      s.add_runtime_dependency(%q<extlib>, [">= 0.9.12"])
+      s.add_runtime_dependency(%q<versionomy>, [">= 0.0.4"])
+      s.add_runtime_dependency(%q<net-ssh>, [">= 2.0.11"])
+      s.add_runtime_dependency(%q<net-scp>, [">= 1.0.2"])
     else
-      s.add_dependency(%q<log4r>, ["= 1.0.5"])
-      s.add_dependency(%q<user-choices>, ["= 1.1.6"])
-      s.add_dependency(%q<extlib>, ["= 0.9.12"])
-      s.add_dependency(%q<versionomy>, ["= 0.0.4"])
-      s.add_dependency(%q<net-ssh>, ["= 2.0.11"])
-      s.add_dependency(%q<net-scp>, ["= 1.0.2"])
+      s.add_dependency(%q<log4r>, [">= 1.0.5"])
+      s.add_dependency(%q<user-choices>, [">= 1.1.6"])
+      s.add_dependency(%q<extlib>, [">= 0.9.12"])
+      s.add_dependency(%q<versionomy>, [">= 0.0.4"])
+      s.add_dependency(%q<net-ssh>, [">= 2.0.11"])
+      s.add_dependency(%q<net-scp>, [">= 1.0.2"])
     end
   else
-    s.add_dependency(%q<log4r>, ["= 1.0.5"])
-    s.add_dependency(%q<user-choices>, ["= 1.1.6"])
-    s.add_dependency(%q<extlib>, ["= 0.9.12"])
-    s.add_dependency(%q<versionomy>, ["= 0.0.4"])
-    s.add_dependency(%q<net-ssh>, ["= 2.0.11"])
-    s.add_dependency(%q<net-scp>, ["= 1.0.2"])
+    s.add_dependency(%q<log4r>, [">= 1.0.5"])
+    s.add_dependency(%q<user-choices>, [">= 1.1.6"])
+    s.add_dependency(%q<extlib>, [">= 0.9.12"])
+    s.add_dependency(%q<versionomy>, [">= 0.0.4"])
+    s.add_dependency(%q<net-ssh>, [">= 2.0.11"])
+    s.add_dependency(%q<net-scp>, [">= 1.0.2"])
   end
 end
