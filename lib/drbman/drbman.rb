@@ -56,13 +56,13 @@ class Drbman
     end
     
     unless block.nil?
-      setup
       begin
+        setup
         @pool = DrbPool.new(@hosts, @logger)
         block.call(self)
       rescue Exception => e
         @logger.error { e }
-        @logger.error { e.backtrace.join("\n") }
+        @logger.debug { e.backtrace.join("\n") }
       ensure
         @pool.shutdown unless @pool.nil?
         shutdown
@@ -81,29 +81,36 @@ class Drbman
   private
 
   # setup the host machine drb servers
+  # @raise [Exception] when a component is not installed on the host
   def setup
-    execute(:startup)
+    threads = []
+    @hosts.each do |name, machine|
+      threads << Thread.new(machine) do |host_machine|
+        host_machine.session do |host|
+          # begin
+            startup(host)
+          # rescue Exception => e
+          #   @logger.error { e }
+          #   @logger.debug { e.backtrace.join("\n") }
+          # end
+        end
+      end
+    end
+    threads.each {|thrd| thrd.join}
     sleep 1  # give the drb servers a little time to get running
   end
   
   # stop and remove the host machine drb servers
   def shutdown
-    execute(:cleanup)
-  end
-  
-  # @param [Symbol,String] cmd the command to run for all host machines.  Should be either :startup or :cleanup
-  # @raise [ArgumentError] if cmd parameter is not :startup or :cleanup
-  def execute(cmd)
-    raise ArgumentError.new("invalid argument value (#{cmd.to_s}), must be either :startup or :cleanup") unless [:startup, :cleanup].include?(cmd)
     threads = []
-    @hosts.each do |name, host_machine|
-      host_machine.session do |host_obj|
-        threads << Thread.new(host_obj) do |host|
+    @hosts.each do |name, machine|
+      threads << Thread.new(machine) do |host_machine|
+        host_machine.session do |host|
           begin
-            send(cmd, host)
+            cleanup(host)
           rescue Exception => e
             @logger.error { e }
-            @logger.error { e.backtrace.join("\n") }
+            @logger.debug { e.backtrace.join("\n") }
           end
         end
       end
@@ -113,6 +120,7 @@ class Drbman
   
   # Setup the drb server on the given host then start it
   # @param [HostMachine] host the host machine
+  # @raise [Exception] when a component is not installed on the host
   def startup(host)
     @logger.info { "Setting up: #{host.name}" }
     check_gems(host)
@@ -142,15 +150,23 @@ class Drbman
   
   # run the drb server stop command on the host machine
   # @param [HostMachine] host the host machine
+  # @raise [Exception] when ruby is not installed on the host
   def stop_drb_server(host)
-    host.sh("cd #{host.dir};ruby #{host.controller} stop")
+    case host.sh("cd #{host.dir};ruby #{host.controller} stop")
+    when /command not found/
+      raise Exception.new "Ruby is not installed on #{host.name}"
+    end
   end
   
   # run the drb server start command on the host machine
   # @param [HostMachine] host the host machine
+  # @raise [Exception] when ruby is not installed on the host
   def run_drb_server(host)
     unless host.controller.blank?
-      host.sh("cd #{host.dir};ruby #{host.controller} start -- #{host.machine} #{host.port}")
+      case host.sh("cd #{host.dir};ruby #{host.controller} start -- #{host.machine} #{host.port}")
+      when /command not found/
+        raise Exception.new "Ruby is not installed on #{host.name}"
+      end
     end
   end
 
@@ -181,17 +197,19 @@ class Drbman
   
   # check if the required gems are installed on the host
   # @param [HostMachine] host the host machine
+  # @raise [Exception] when rubygems is not installed on the host
   def check_gems(host)
-    unless @user_choices[:gems].blank?
-      @user_choices[:gems].each do |gem_name|
-        # str = host.sh("env")
-        # @logger.debug { "=> #{str}"}
-        str = host.sh("gem list -l -i #{gem_name}")
-        # @logger.debug { "=> #{str.inspect}"}
-        if str =~ /false/i
-          @logger.info { "The \"#{gem_name}\" gem is not installed on #{host.name}" }
-        end
+    missing_gems = []
+    @user_choices[:gems].each do |gem_name|
+      case host.sh("gem list -l -i #{gem_name}")
+      when /false/i
+        missing_gems << gem_name
+      when /command not found/
+        raise Exception.new "Rubygems is not installed on #{host.name}"
       end
+    end
+    unless missing_gems.empty?
+      raise Exception.new "The following gems are not installed on #{host.name}: #{missing_gems.join(', ')}"
     end
   end
 
@@ -201,7 +219,7 @@ class Drbman
   # @todo maybe generate a random uuid locally instead
   # @param [HostMachine] host the host machine
   def create_directory(host)
-    host.uuid = host.sh('uuidgen').strip
+    host.uuid = UUIDTools::UUID.random_create
     host.dir = "~/.drbman/#{host.uuid}".strip
     host.sh("mkdir -p #{host.dir}")
     @logger.debug { "host directory: #{host.dir}" }

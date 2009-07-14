@@ -19,6 +19,8 @@ class SieveOfEratosthenes
   
   def execute
     result = []
+    @logger.debug { @choices.pretty_inspect }
+
     Drbman.new(@logger, @choices) do |drbman|
       @primes_elapse_time = elapse do
         result = primes(@n, drbman)

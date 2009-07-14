@@ -26,7 +26,7 @@ class CLI < UserChoices::Command
         app.execute
       rescue Exception => e
         logger.error { e.to_s }
-        logger.error { e.backtrace.join("\n") }
+        logger.debug { e.backtrace.join("\n") }
       end
     end
   end

@@ -29,7 +29,7 @@ class CLI < UserChoices::Command
         logger.info { "total elapsed time: #{elapse_time}" }
       rescue Exception => e
         logger.error { e.to_s }
-        logger.error { e.backtrace.join("\n") }
+        logger.debug { e.backtrace.join("\n") }
       end
     end
   end

@@ -1,9 +1,6 @@
 # == Synopsis
 # A pool of drb objects
 class DrbPool
-  # @todo change to threaded
-  THREADED = true
-  
   # Create the pool of drb objects.
   # @param [Array<HostMachine>] the host_machine instances to use to populate the pool of drb objects
   # @param [Logger] the logger
@@ -19,25 +16,19 @@ class DrbPool
   def initialize(hosts, logger, &block)
     @logger = logger
     @objects = []
-    sleep 1
-    if THREADED
-      threads = []
-      mutex = Mutex.new
-      hosts.each do |host_name, host_machine|
-        threads << Thread.new(host_machine) do |host|
-          obj = get_drb_object(host.machine, host.port)
-          mutex.synchronize do
-            @objects << obj
-          end
+
+    threads = []
+    mutex = Mutex.new
+    hosts.each do |host_name, host_machine|
+      threads << Thread.new(host_machine) do |host|
+        obj = get_drb_object(host.machine, host.port)
+        mutex.synchronize do
+          @objects << obj
         end
       end
-      threads.each {|thrd| thrd.join}
-    else
-      hosts.each do |host_name, host|
-        obj = get_drb_object(host.machine, host.port)
-        @objects << obj
-      end
     end
+    threads.each {|thrd| thrd.join}
+
     unless block.nil?
       block.call(self)
       shutdown
@@ -96,12 +87,11 @@ class DrbPool
       obj = DRbObject.new(nil, "druby://#{machine}:#{port}")
       obj.extend(InUse)
       name = obj.name
-      # @logger.debug {"DrbObject.name => #{name}"}
       obj.in_use = false
     rescue Exception => e
       retry_cnt += 1
       raise e if retry_cnt > 10
-      sleep 0.5
+      sleep 0.2
       @logger.debug {"retrying (#{retry_cnt})"}
       retry
     end

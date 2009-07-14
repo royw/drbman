@@ -15,7 +15,6 @@ class HostMachine
   #  The format is "{user{:password}@}machine{:port}"
   # @param [Logger] logger the logger to use
   def initialize(host_string, logger)
-    @name = host_string
     @logger = logger
     @machine = 'localhost'
     @user = ENV['USER']
@@ -44,7 +43,9 @@ class HostMachine
     when /^(\S+)$/
       @machine = $1
     end
+    @name = "#{user}@#{machine}:#{port}"
     @ssh = nil
+    @logger.debug { self.pretty_inspect }
   end
   
   # Connect to the host, execute the given block, then disconnect from the host
@@ -111,14 +112,15 @@ class HostMachine
   # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
   def sh(command, opts={})
     @logger.debug { "sh \"#{command}\""}
-    if opts[:source].blank?
-      opts[:source] = ['~/.profile', '~/.bashrc']
-    end
+    # if opts[:source].blank?
+    #   opts[:source] = ['~/.profile', '~/.bashrc']
+    # end
     connect
     result = nil
     unless @ssh.nil?
       if @pre_commands.nil?
         @pre_commands = []
+        opts[:source] ||= []
         opts[:source].each do |name|
           ls_out = @ssh.exec!("ls #{name}")
           @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
@@ -141,9 +143,9 @@ class HostMachine
   # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
   def sudo(command, opts={})
     @logger.debug { "sudo \"#{command}\""}
-    if opts[:source].blank?
-      opts[:source] = ['~/.profile', '~/.bashrc']
-    end
+    # if opts[:source].blank?
+    #   opts[:source] = ['~/.profile', '~/.bashrc']
+    # end
     connect
     result = nil
     unless @ssh.nil?
@@ -151,6 +153,7 @@ class HostMachine
       @ssh.open_channel do |channel|
         if @pre_commands.nil?
           @pre_commands = []
+          opts[:source] ||= []
           opts[:source].each do |name|
             ls_out = @ssh.exec!("ls #{name}")
             @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
