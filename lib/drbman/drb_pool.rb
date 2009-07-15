@@ -100,9 +100,15 @@ class DrbPool
   
   # Adds an in_use attribute
   module InUse
+    # set the in_use flag
+    # @param [Boolean] flag
+    # @return [Boolean] the new state of the in_use flag
     def in_use=(flag)
       @in_use = (flag ? true : false)
     end
+    
+    # get the in_use flag
+    # @return [Boolean] the state of the in_use flag
     def in_use?
       @in_use
     end
