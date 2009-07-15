@@ -55,6 +55,9 @@ class CLI < UserChoices::Command
     builder.add_choice(:debug, :type => :boolean, :default => false) do |command_line|
       command_line.uses_switch('-v', '--verbose', 'Display debug messages')
     end
+    builder.add_choice(:leave, :type => :boolean, :default => false) do |command_line|
+      command_line.uses_switch('-l', '--leave', 'Leave files on host machines')
+    end
     builder.add_choice(:hosts, :type => [:string], :default => []) do |command_line|
       command_line.uses_option('-H', '--hosts "HOST,HOST"', 'Comma separated host machines, ex: "machine1{,machine2{,...}}"')
     end
