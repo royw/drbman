@@ -14,12 +14,15 @@ class HostMachine
   # @param [String] host_string describes the host to connect to.
   #  The format is "{user{:password}@}machine{:port}"
   # @param [Logger] logger the logger to use
-  def initialize(host_string, logger)
+  # @param [UserChoices,Hash] choices
+  # @option choices [Array<String>] :keys (['~/.ssh/id_dsa', '~/.ssh/id_rsa']) array of ssh key file names.
+  def initialize(host_string, logger, choices)
     @logger = logger
     @machine = 'localhost'
     @user = ENV['USER']
     @port = 9000
-    @password = {:keys => ['~/.ssh/id_dsa']}
+    keys = choices[:keys] || ["~/.ssh/id_dsa", "~/.ssh/id_rsa"]
+    @password = {:keys => keys.collect{|name| name.gsub('~', ENV['HOME'])}.select{|name| File.exist?(name)}}
     case host_string
     when /^(\S+)\:(\S+)\@(\S+)\:(\d+)$/
       @user = $1
@@ -68,7 +71,6 @@ class HostMachine
   # @raise [Exception] if the files are not copied
   def upload(local_src, remote_dest)
     @logger.debug { "upload(\"#{local_src}\", \"#{remote_dest}\")" }
-    connect
     result = nil
     unless @ssh.nil?
       begin
@@ -82,13 +84,12 @@ class HostMachine
       end
     end
   end
-  
+
   # download a directory structure from the host machine.
   # @param [String] remote_src the source directory on the host machine
   # @param [String] local_dest the destination directory on the local machine
   # @raise [Exception] if the files are not copied
   def download(remote_src, local_dest)
-    connect
     result = nil
     unless @ssh.nil?
       begin
@@ -109,23 +110,13 @@ class HostMachine
   #
   # @param [String] command the command to run
   # @param [Hash] opts
-  # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
+  # @option opts [Array<String>] :source (['~/.profile', '~/.bashrc']) array of files to source.
+  # @return [String, nil] the output from running the command
   def sh(command, opts={})
-    if opts[:source].blank?
-      opts[:source] = ['~/.profile', '~/.bashrc']
-    end
-    connect
-    result = nil
     unless @ssh.nil?
-      if @pre_commands.nil?
-        @pre_commands = []
-        opts[:source] ||= []
-        opts[:source].each do |name|
-          ls_out = @ssh.exec!("ls #{name}")
-          @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
-        end
-      end
-      commands = @pre_commands.clone
+      opts[:source] = ['~/.profile', '~/.bashrc'] if opts[:source].blank?
+      result = nil
+      commands = pre_commands(opts[:source])
       commands << command
       command_line = commands.join(' && ')
       @logger.debug { "sh: \"#{command_line}\""}
@@ -135,59 +126,33 @@ class HostMachine
     result
   end
   
-  # run a command as the superuser on the host machine
-  # Note that the environment on the host machine is the default environment instead
-  # of the user's environment.  So by default we try to source ~/.profile and ~/.bashrc
-  #
-  # @param [String] command the command to run
-  # @param [Hash] opts
-  # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
-  def sudo(command, opts={})
-    @logger.debug { "sudo \"#{command}\""}
-    if opts[:source].blank?
-      opts[:source] = ['~/.profile', '~/.bashrc']
-    end
-    connect
-    result = nil
-    unless @ssh.nil?
-      buf = []
-      @ssh.open_channel do |channel|
-        if @pre_commands.nil?
-          @pre_commands = []
-          opts[:source] ||= []
-          opts[:source].each do |name|
-            ls_out = @ssh.exec!("ls #{name}")
-            @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
-          end
-        end
-        commands = @pre_commands.clone
-        commands << "sudo -p 'sudo password: ' #{command}"
-        command_line = commands.join(' && ')
-        channel.exec(command_line) do |ch, success|
-          ch.on_data do |ch, data|
-            if data =~ /sudo password: /
-              ch.send_data("#{@password[:password]}\n")
-            else
-              buf << data
-            end
-          end
-        end
+  private
+  
+  def pre_commands(sources)
+    if @pre_commands.nil?
+      @pre_commands = []
+      sources.each do |name|
+        ls_out = @ssh.exec!("ls #{name}")
+        @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
       end
-      @ssh.loop
-      result = buf.compact.join('')
     end
-    result
+    @pre_commands.clone
   end
-
+  
   # connect to the host machine
+  # note, you should not need to call the connect method.
+  # @see {#session}
   def connect
     if @ssh.nil?
+      @logger.debug { "connect: @machine=>#{@machine}, @user=>#{@user}, @password=>#{@password.inspect}" }
       @ssh = Net::SSH.start(@machine, @user, @password)
       # @ssh.forward.local(@port, @machine, @port)
     end
   end
   
-  # disconnect from the host machine
+  # disconnect from the host machine.
+  # note, you should not need to call the disconnect method.
+  # @see {#session}
   def disconnect
     if @ssh
       @ssh.close
@@ -195,12 +160,11 @@ class HostMachine
     end
   end
 
-  private
-  
   # Does the local directory tree and the remote directory tree contain the same files?
   # Calculates a MD5 hash for each file then compares the hashes
   # @param [String] local_path local directory
   # @param [String] remote_path remote directory
+  # @return [Boolean] asserted if the files in both directory trees are identical
   def same_files?(local_path, remote_path)
     remote_md5 = @ssh.exec!(md5_command_line(remote_path))
     local_md5 = `#{md5_command_line(local_path)}`
@@ -208,6 +172,8 @@ class HostMachine
     remote_md5 == local_md5
   end
   
+  # @param [String] dirname the directory name to use in building the md5 command line
+  # @return [String] the command line for finding the md5 hash value
   def md5_command_line(dirname)
     line = "cat \`find #{dirname} -type f | sort\` | ruby -e \"require 'digest/md5';puts Digest::MD5.hexdigest(STDIN.read)\""
     @logger.debug { line }
