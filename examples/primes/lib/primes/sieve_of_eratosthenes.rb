@@ -1,29 +1,50 @@
-# Command design pattern
+# The Sieve of Eratosthenes prime number finder
+# Note, uses the Command design pattern
 class SieveOfEratosthenes
   attr_reader :primes_elapse_time
-  def initialize(n, choices, logger)
-    @n = n.to_i
+
+  # Use the Sieve of Eratosthenes to find prime numbers
+  #
+  # @param [Integer] maximum find all primes lower than this maximum value
+  # @option choices [Array<String>] :dirs array of local directories to copy to the host machines.  REQUIRED
+  # @option choices [String] :run the name of the file to run on the host machine.  REQUIRED
+  #  This file should start the drb server.  Note, this file will be daemonized before running.
+  # @option choices [Array<String>] :hosts array of host machine descriptions "{user{:password}@}machine{:port}"
+  #  This defaults to ['localhost']
+  # @option choices [Integer] :port default port number used to assign to hosts without a port number.
+  #  The port number is incremented for each host.  This defaults to 9000
+  # @option choices [Array<String>] :gems array of gem names to verify are installed on the host machine.
+  #  Note, 'daemons' is always added to this array.
+  # @param [Logger] logger the logger to use
+  def initialize(maximum, choices, logger)
+    @maximum = maximum.to_i
     @choices = choices
     @logger = logger
     
     # we need at least one host that has a drb server running
     @choices[:hosts] = ['localhost'] if @choices[:hosts].blank?
     
-    # set the file to be ran that contains the drb server
-    @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?
-    @choices[:gems] = ['log4r']
-    
     # specify the directories to copy to the host machine
     @choices[:dirs] = [File.join(File.dirname(__FILE__), '../drb_server')]
+
+    # set the file to be ran that contains the drb server
+    @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?
+    
+    # specify gems required by the drb server object
+    # each host will be checked to make sure these gems are installed
+    @choices[:gems] = ['log4r']
+    
   end
   
+  # Calculate the primes
+  # @return [Array<Integer] the primes in an Array
   def execute
     result = []
     @logger.debug { @choices.pretty_inspect }
 
     Drbman.new(@logger, @choices) do |drbman|
       @primes_elapse_time = elapse do
-        result = primes(@n, drbman)
+        result = primes(@maximum, drbman)
       end
     end
     result
@@ -31,12 +52,12 @@ class SieveOfEratosthenes
   
   private
   
-  def primes(n, drbman)
+  def primes(maximum, drbman)
     indices = []
-    if n > 2
-      composites = calc_composites(n, drbman)
+    if maximum > 2
+      composites = calc_composites(maximum, drbman)
       flat_comps = composites.flatten.uniq
-      indices = calc_indices(flat_comps, n)
+      indices = calc_indices(flat_comps, maximum)
     end
     indices
   end
@@ -45,21 +66,19 @@ class SieveOfEratosthenes
   # sqr_primes = [2,3]
   # composites = [[2*2, 2*3, 2*4,...,2*9], [3*2, 3*3, 3*4,...,3*6]]
   # returns Array
-  def calc_composites(n, drbman)
-    sqr_primes = primes(Math.sqrt(n).to_i, drbman)
+  def calc_composites(maximum, drbman)
+    sqr_primes = primes(Math.sqrt(maximum).to_i, drbman)
     composites = []
     threads = []
     mutex = Mutex.new
     sqr_primes.each do |ip|
       # parallelize via threads
       # then use the drb object within the thread
-      threads << Thread.new(ip, n) do |value, max|
-        # @logger.debug { "thread(#{ip}, #{n})" }
+      threads << Thread.new(ip, maximum) do |prime, max|
         drbman.get_object do |prime_helper|
-          # @logger.debug { "prime_helper.name => #{prime_helper.name}" }
-          non_primes = prime_helper.non_primes(value, max)
+          prime_multiples = prime_helper.multiples_of(prime, max)
           mutex.synchronize do
-            composites << non_primes
+            composites << prime_multiples
           end
         end
       end
@@ -68,9 +87,9 @@ class SieveOfEratosthenes
     composites
   end
   
-  def calc_indices(flat_comps, n)
+  def calc_indices(flat_comps, maximum)
     indices = []
-    flags = Array.new(n, true)
+    flags = Array.new(maximum, true)
     flat_comps.each {|i| flags[i] = false}
     flags.each_index {|i| indices << i if flags[i] }
     indices.shift(2)
