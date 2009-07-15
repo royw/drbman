@@ -111,10 +111,9 @@ class HostMachine
   # @param [Hash] opts
   # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
   def sh(command, opts={})
-    @logger.debug { "sh \"#{command}\""}
-    # if opts[:source].blank?
-    #   opts[:source] = ['~/.profile', '~/.bashrc']
-    # end
+    if opts[:source].blank?
+      opts[:source] = ['~/.profile', '~/.bashrc']
+    end
     connect
     result = nil
     unless @ssh.nil?
@@ -129,7 +128,9 @@ class HostMachine
       commands = @pre_commands.clone
       commands << command
       command_line = commands.join(' && ')
+      @logger.debug { "sh: \"#{command_line}\""}
       result = @ssh.exec!(command_line)
+      @logger.debug { "=> #{result}" }
     end
     result
   end
@@ -143,9 +144,9 @@ class HostMachine
   # @options opts [Array<String>] :source array of files to source. defaults to ['~/.profile', '~/.bashrc']
   def sudo(command, opts={})
     @logger.debug { "sudo \"#{command}\""}
-    # if opts[:source].blank?
-    #   opts[:source] = ['~/.profile', '~/.bashrc']
-    # end
+    if opts[:source].blank?
+      opts[:source] = ['~/.profile', '~/.bashrc']
+    end
     connect
     result = nil
     unless @ssh.nil?
