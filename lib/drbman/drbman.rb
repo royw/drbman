@@ -122,7 +122,7 @@ class Drbman
   # @param [HostMachine] host the host machine
   # @raise [Exception] when a component is not installed on the host
   def startup(host)
-    @logger.info { "Setting up: #{host.name}" }
+    @logger.debug { "Setting up: #{host.name}" }
     check_gems(host)
     create_directory(host)
     upload_dirs(host)
@@ -133,7 +133,7 @@ class Drbman
   # Stop the drb server on the given host then remove the drb files from the host
   # @param [HostMachine] host the host machine
   def cleanup(host)
-    @logger.info { "Cleaning up: #{host.name}" }
+    @logger.debug { "Cleaning up: #{host.name}" }
     stop_drb_server(host)
     cleanup_files(host)
   end
@@ -144,7 +144,7 @@ class Drbman
   def cleanup_files(host)
     unless host.dir.blank? || (host.dir =~ /[\*\?]/)
       @logger.debug { "#{host.name}: rm -rf #{host.dir}"}
-      host.sh("rm -rf #{host.dir}")
+      host.sh("rm -rf #{host.dir}") unless @user_choices[:leave]
     end
   end
   
@@ -201,7 +201,7 @@ class Drbman
   def check_gems(host)
     missing_gems = []
     @user_choices[:gems].each do |gem_name|
-      case host.sh("gem list -l -i #{gem_name}")
+      case str = host.sh("gem list -l -i #{gem_name}")
       when /false/i
         missing_gems << gem_name
       when /command not found/
