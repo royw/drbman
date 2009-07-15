@@ -15,22 +15,22 @@
 class Drbman
   # @param [Logger] logger the logger
   # @param [UserChoices,Hash] choices
-  # @option choices [Array<String>] :dirs array of local directories to copy to the host machines.  REQUIRED
-  # @option choices [String] :run the name of the file to run on the host machine.  REQUIRED
+  # @option choices [Array<String>] :dirs array of local directories to copy to the host machines (REQUIRED).
+  # @option choices [String] :run the name of the file to run on the host machine (REQUIRED).
   #  This file should start the drb server.  Note, this file will be daemonized before running.
-  # @option choices [Array<String>] :hosts array of host machine descriptions "{user{:password}@}machine{:port}"
-  #  This defaults to ['localhost']
-  # @option choices [Integer] :port default port number used to assign to hosts without a port number.
-  #  The port number is incremented for each host.  This defaults to 9000
-  # @option choices [Array<String>] :gems array of gem names to verify are installed on the host machine.
-  #  Note, 'daemons' is always added to this array.
+  # @option choices [Array<String>] :hosts (['localhost']) array of host machine descriptions "{user{:password}@}machine{:port}".
+  # @option choices [Integer] :port (9000) default port number used to assign to hosts without a port number,
+  #  the port number is incremented for each host.
+  # @option choices [Array<String>] :gems ([]) array of gem names to verify are installed on the host machine,
+  #  note, 'daemons' is always added to this array.
+  # @option choices [Array<String>] :keys (['~/.ssh/id_dsa', '~/.ssh/id_rsa']) array of ssh key file names.
   # @yield [Drbman]
   # @example Usage
-  # Drbman.new(logger, choices) do |drbman|
-  #   drbman.get_object do |obj|
-  #     obj.do_something
+  #   Drbman.new(logger, choices) do |drbman|
+  #     drbman.get_object do |obj|
+  #       obj.do_something
+  #     end
   #   end
-  # end
   def initialize(logger, choices, &block)
     @logger = logger
     @user_choices = choices
@@ -38,20 +38,20 @@ class Drbman
     # @hosts[machine_description] = HostMachine instance
     @hosts = {}
 
-    choices[:port] ||= 9000
-    choices[:hosts] ||= ['localhost']
-    choices[:gems] ||= []
-    choices[:gems] = (choices[:gems] + ['daemons']).uniq.compact
+    @user_choices[:port] ||= 9000
+    @user_choices[:hosts] ||= ['localhost']
+    @user_choices[:gems] ||= []
+    @user_choices[:gems] = (@user_choices[:gems] + ['daemons']).uniq.compact
     
-    raise ArgumentError.new('Missing choices[:run]') if choices[:run].blank?
-    raise ArgumentError.new('Missing choices[:hosts]') if choices[:hosts].blank?
-    raise ArgumentError.new('Missing choices[:dirs]') if choices[:dirs].blank?
+    raise ArgumentError.new('Missing choices[:run]')   if @user_choices[:run].blank?
+    raise ArgumentError.new('Missing choices[:hosts]') if @user_choices[:hosts].blank?
+    raise ArgumentError.new('Missing choices[:dirs]')  if @user_choices[:dirs].blank?
     
     # populate the @hosts hash.  key => host machine description, value => HostMachine instance
-    port = choices[:port]
+    port = @user_choices[:port]
     @user_choices[:hosts].each do |host|
       host = "#{host}:#{port}" unless host =~ /\:\d+\s*$/
-      @hosts[host] = HostMachine.new(host, @logger)
+      @hosts[host] = HostMachine.new(host, @logger, @user_choices)
       port += 1
     end
     
@@ -87,12 +87,7 @@ class Drbman
     @hosts.each do |name, machine|
       threads << Thread.new(machine) do |host_machine|
         host_machine.session do |host|
-          # begin
-            startup(host)
-          # rescue Exception => e
-          #   @logger.error { e }
-          #   @logger.debug { e.backtrace.join("\n") }
-          # end
+          startup(host)
         end
       end
     end
@@ -218,11 +213,13 @@ class Drbman
   # Note, requires 'uuidgen' in the path on the host machine
   # @todo maybe generate a random uuid locally instead
   # @param [HostMachine] host the host machine
+  # @return [String] the created directory path
   def create_directory(host)
     host.uuid = UUIDTools::UUID.random_create
     host.dir = "~/.drbman/#{host.uuid}".strip
     host.sh("mkdir -p #{host.dir}")
     @logger.debug { "host directory: #{host.dir}" }
+    host.dir
   end
   
 end
