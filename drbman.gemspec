@@ -2,11 +2,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{drbman}
-  s.version = "0.0.1"
+  s.version = "0.0.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Roy Wright"]
-  s.date = %q{2009-07-15}
+  s.date = %q{2009-07-16}
   s.default_executable = %q{drbman}
   s.email = %q{roy@wright.org}
   s.executables = ["drbman"]
@@ -33,6 +33,7 @@ Gem::Specification.new do |s|
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/spec/primes_spec.rb",
      "examples/primes/spec/spec_helper.rb",
+     "examples/primes/stress_test.rb",
      "lib/drbman.rb",
      "lib/drbman/cli.rb",
      "lib/drbman/drb_pool.rb",
@@ -58,7 +59,8 @@ Gem::Specification.new do |s|
      "examples/primes/lib/primes/sieve_of_eratosthenes.rb",
      "examples/primes/lib/primes.rb",
      "examples/primes/spec/primes_spec.rb",
-     "examples/primes/spec/spec_helper.rb"
+     "examples/primes/spec/spec_helper.rb",
+     "examples/primes/stress_test.rb"
   ]
 
   if s.respond_to? :specification_version then
