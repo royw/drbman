@@ -1,0 +1,42 @@
+= primes
+
+Primes is an example of using drbman to parallelize part of an application across one or more systems.
+
+== Usage
+
+N is the upper bound on the primes you want to find.  For example to
+find all primes below 200, N would be 200.
+
+single drb instance on localhost using ssh public key authentication:
+  bin/primes N
+or
+  bin/primes N -H localhost
+
+two drb instances on localhost using ssh public key authentication:
+  bin/primes N -H localhost,localhost
+
+three drb instances on remote hosts using ssh public key authentication:
+  bin/primes N -H one.example.com,two.example.com,three.example.com
+
+single drb instance on remote host using different account and ssh public key authentication:
+  bin/primes H -H username@example.com
+
+single drb instance on remote host using ssh passward authentication:
+  bin/primes H -H username:sekret@example.com
+
+help
+  bin/primes --help
+
+== Installation
+
+primes is installed as an example in drbman
+
+== Notes
+
+primes uses yard comments so you can generate yard documents using:
+
+rake yardoc
+
+== Copyright
+
+Copyright (c) 2009 Roy Wright. See LICENSE for details.

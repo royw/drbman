@@ -1,3 +1,4 @@
+# The command line interface for running Primes
 class CLI < UserChoices::Command
   include UserChoices
   include Singleton

@@ -1,7 +1,7 @@
 # require 'commandline/optionparser'
 
 # == Synopsis
-# The Command Line Interface
+# The Command Line Interface for Drbman
 class CLI < UserChoices::Command
   include UserChoices
   include Singleton

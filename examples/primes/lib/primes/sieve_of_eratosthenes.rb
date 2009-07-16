@@ -52,6 +52,10 @@ class SieveOfEratosthenes
   
   private
   
+  # recursive prime calculation
+  # @param maximum (see #initialize)
+  # @param [Drbman] drbman the drb manager instance
+  # @return [Array<Integer>] the array of primes
   def primes(maximum, drbman)
     indices = []
     if maximum > 2
@@ -62,11 +66,14 @@ class SieveOfEratosthenes
     indices
   end
 
-  # when n = 20
-  # sqr_primes = [2,3]
-  # composites = [[2*2, 2*3, 2*4,...,2*9], [3*2, 3*3, 3*4,...,3*6]]
-  # returns Array
+  # find the composites array
+  # @param maximum (see #initialize)
+  # @param drbman (see #primes)
+  # @return [Array<Integer>] the composites array
   def calc_composites(maximum, drbman)
+    # when n = 20
+    # sqr_primes = [2,3]
+    # composites = [[2*2, 2*3, 2*4,...,2*9], [3*2, 3*3, 3*4,...,3*6]]
     sqr_primes = primes(Math.sqrt(maximum).to_i, drbman)
     composites = []
     threads = []
@@ -87,6 +94,9 @@ class SieveOfEratosthenes
     composites
   end
   
+  # sift the indices to find the primes
+  # @param [Array<Integer>] flat_comps the flattened composites array
+  # @param maximum (see #initialize)
   def calc_indices(flat_comps, maximum)
     indices = []
     flags = Array.new(maximum, true)

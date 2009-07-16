@@ -3,11 +3,24 @@
 Support for running ruby tasks via drb (druby) on multiple cores and/or systems.
 
 Drbman provides:
-* the infrastructure for pushing ruby code to remote systems,
-* installing remote gems
+* the infrastructure for pushing drb servers to remote systems,
+* checking that gems are installed on remote systems,
 * starting and stopping the remote drb server(s)
-* cleaning up the remote system by removing any artifacts used
+* cleaning up the remote system by stopping and removing drb servers
 
+== Usage
+
+An article on using drbman is available at: http://royw.wordpress.com/2009/07/15/a-manager-for-drb/
+
+== Installation
+
+sudo gem install royw-drbman --source http://gems.github.com
+
+== Notes
+
+drbman uses yard comments so you can generate yard documents using:
+
+rake yardoc
 
 == Copyright
 
