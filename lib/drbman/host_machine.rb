@@ -11,6 +11,11 @@ class HostMachine
   attr_accessor :uuid, :dir, :controller
   attr_reader :name, :machine, :user, :port
   
+  class << self
+    attr_accessor :connection_mutex
+  end
+  @connection_mutex = Mutex.new
+  
   # @param [String] host_string describes the host to connect to.
   #  The format is "{user{:password}@}machine{:port}"
   # @param [Logger] logger the logger to use
@@ -18,6 +23,7 @@ class HostMachine
   # @option choices [Array<String>] :keys (['~/.ssh/id_dsa', '~/.ssh/id_rsa']) array of ssh key file names.
   def initialize(host_string, logger, choices)
     @logger = logger
+    @choices = choices
     @machine = 'localhost'
     @user = ENV['USER']
     @port = 9000
@@ -60,9 +66,20 @@ class HostMachine
   #   @logger.debug { host.sh("ls -lR #{host.dir}") }
   # end
   def session(&block)
-    connect
-    yield self
-    disconnect
+    begin
+      # this is ugly but apparently net-ssh can fail public_key authentication
+      # when ran in parallel.
+      HostMachine.connection_mutex.synchronize do
+        connect
+      end
+      yield self
+    rescue Exception => e
+      @logger.error { e }
+      @logger.error { e.backtrace.join("\n") }
+      raise e
+    ensure
+      disconnect
+    end
   end
   
   # upload a directory structure to the host machine.
@@ -131,9 +148,11 @@ class HostMachine
   def pre_commands(sources)
     if @pre_commands.nil?
       @pre_commands = []
-      sources.each do |name|
-        ls_out = @ssh.exec!("ls #{name}")
-        @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
+      unless @ssh.nil?
+        sources.each do |name|
+          ls_out = @ssh.exec!("ls #{name}")
+          @pre_commands << "source #{name}" if ls_out =~ /^\s*\S+\/#{File.basename(name)}\s*$/
+        end
       end
     end
     @pre_commands.clone
@@ -144,8 +163,13 @@ class HostMachine
   # @see {#session}
   def connect
     if @ssh.nil?
-      @logger.debug { "connect: @machine=>#{@machine}, @user=>#{@user}, @password=>#{@password.inspect}" }
-      @ssh = Net::SSH.start(@machine, @user, @password)
+      options = @password.merge({
+        :timeout=>2, 
+        :auth_methods => %w(publickey hostbased password)
+        })
+      options = @password.merge({:verbose=>Logger::DEBUG}) if @choices[:ssh_debug]
+      @logger.debug { "connect: @machine=>#{@machine}, @user=>#{@user}, options=>#{options.inspect}" }
+      @ssh = Net::SSH.start(@machine, @user, options)
       # @ssh.forward.local(@port, @machine, @port)
     end
   end
@@ -166,10 +190,14 @@ class HostMachine
   # @param [String] remote_path remote directory
   # @return [Boolean] asserted if the files in both directory trees are identical
   def same_files?(local_path, remote_path)
-    remote_md5 = @ssh.exec!(md5_command_line(remote_path))
-    local_md5 = `#{md5_command_line(local_path)}`
-    @logger.debug { "same_files? local_md5 => #{local_md5}, remote_md5 => #{remote_md5}"}
-    remote_md5 == local_md5
+    result = false
+    unless @ssh.nil?
+      remote_md5 = @ssh.exec!(md5_command_line(remote_path))
+      local_md5 = `#{md5_command_line(local_path)}`
+      @logger.debug { "same_files? local_md5 => #{local_md5}, remote_md5 => #{remote_md5}"}
+      result = (remote_md5 == local_md5)
+    end
+    result
   end
   
   # @param [String] dirname the directory name to use in building the md5 command line
