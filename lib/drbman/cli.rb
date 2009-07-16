@@ -55,6 +55,12 @@ class CLI < UserChoices::Command
     builder.add_choice(:run, :type => :string, :default => nil) do |command_line|
       command_line.uses_option('-r', '--run "COMMAND"', "The ruby file that starts the drb server")
     end
+    builder.add_choice(:leave, :type => :boolean, :default => false) do |command_line|
+      command_line.uses_switch('-l', '--leave', 'Leave files on host machines')
+    end
+    builder.add_choice(:ssh_debug, :type => :boolean, :default => false) do |command_line|
+      command_line.uses_switch('-s', '--ssh-debug', 'Display the ssh debug messages')
+    end
     builder.add_choice(:hosts, :type => [:string], :default => []) do |command_line|
       command_line.uses_option('-H', '--hosts "HOST,HOST"', 'Comma separated account URLs, ex: "{user{:pass}@}machine1{,{user{:pass}@}machine2}"')
     end
