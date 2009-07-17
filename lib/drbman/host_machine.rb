@@ -61,12 +61,15 @@ class HostMachine
     result = true
     begin
       session do |host|
-        host.sh('ls')
+        response = host.sh('uptime')
+        @logger.debug { "#{host.name} #{response}" }
+        raise Exception.new('no response from uptime') if response.strip.empty?
       end
-    rescue Exception
-      @logger.warn { "#{@name} is not responding" }
+    rescue Exception => e
+      @logger.warn { "#{@name} is not responding: #{e}" }
       result = false
     end
+    result
   end
   
   # Connect to the host, execute the given block, then disconnect from the host
@@ -174,19 +177,19 @@ class HostMachine
   # @see {#session}
   def connect
     if @ssh.nil?
-      options = @password.merge({
-        :timeout=>2, 
-        :auth_methods => %w(publickey hostbased password)
-        })
-      options = @password.merge({:verbose=>Logger::DEBUG}) if @choices[:ssh_debug]
+      options = @password
+      options = options.merge({:verbose => Logger::INFO}) if @choices[:ssh_debug]
+      options = options.merge({:password => ''}) if options[:password].nil?
       @logger.debug { "connect: @machine=>#{@machine}, @user=>#{@user}, options=>#{options.inspect}" }
       begin
         @ssh = Net::SSH.start(@machine, @user, options)
         # @ssh.forward.local(@port, @machine, @port)
       rescue Net::SSH::AuthenticationFailed
+        @logger.debug { "connect raised Net::SSH::AuthenticationFailed" }
         @ssh = nil
         raise Net::SSH::AuthenticationFailed.new(@name)
       rescue Exception => e
+        @logger.debug { "connect raised #{e}"}
         @ssh = nil
         raise e
       end

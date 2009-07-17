@@ -19,12 +19,15 @@ class DrbPool
 
     threads = []
     mutex = Mutex.new
+    @logger.debug { "drb_pool hosts => #{hosts.inspect}"}
     hosts.each do |host_name, host_machine|
       threads << Thread.new(host_machine) do |host|
         if host.alive?
           obj = get_drb_object(host.machine, host.port)
-          mutex.synchronize do
-            @objects << obj
+          unless obj.nil?
+            mutex.synchronize do
+              @objects << obj
+            end
           end
         end
       end
