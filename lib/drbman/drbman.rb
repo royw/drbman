@@ -164,14 +164,20 @@ class Drbman
       end
     end
   end
-
+  
   # Create the daemon controller on the host machine
   # @param [HostMachine] host the host machine
   def create_controller(host)
     unless @user_choices[:run].blank?
       host.controller = File.basename(@user_choices[:run], '.*') + '_controller.rb'
-      controller = "require 'rubygems' ; require 'daemons' ; Daemons.run('#{@user_choices[:run]}')"
-      host.sh("cd #{host.dir};echo \"#{controller}\" > #{host.controller}")
+      tempfile = Tempfile.new('controller')
+      tempfile.puts "require 'rubygems'"
+      tempfile.puts "require 'daemons'"
+      tempfile.puts "$LOAD_PATH.unshift(File.expand_path(File.dirname('#{@user_choices[:run]}')))"
+      tempfile.puts "Daemons.run('#{@user_choices[:run]}')"
+      tempfile.close
+      host.upload(tempfile.path, host.dir)
+      host.sh("cd #{host.dir};mv #{File.basename(tempfile.path)} #{host.controller}")
     end
   end
   
@@ -180,9 +186,11 @@ class Drbman
   # @param [HostMachine] host the host machine
   def upload_dirs(host)
     unless @user_choices[:dirs].blank?
+      drb_server_file = File.join(File.dirname(__FILE__), "../drb_server/drbman_server.rb")
       @user_choices[:dirs].each do |name|
         if File.directory?(name)
           host.upload(name, "#{host.dir}/#{File.basename(name)}")
+          host.upload(drb_server_file, "#{host.dir}/#{File.basename(name)}")
         else
           @logger.error { "\"#{name}\" is not a directory" }
         end

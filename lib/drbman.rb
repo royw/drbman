@@ -20,6 +20,7 @@ require 'net/ssh'
 require 'net/scp'
 require 'daemons'
 require 'uuidtools'
+require 'tempfile'
 
 # require all of the .rb files in the drbman/ subdirectory
 Dir.glob(File.join(File.dirname(__FILE__), 'drbman/**/*.rb')).each do |name| 

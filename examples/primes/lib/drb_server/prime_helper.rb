@@ -1,4 +1,4 @@
-require 'drb'
+require 'drbman_server'
 
 # A helper object for calculating primes using the Sieve of Eratosthenes
 #
@@ -13,7 +13,7 @@ require 'drb'
 # will run the service as: druby://localhost:9000
 #
 class PrimeHelper
-  attr_accessor :name
+  include DrbmanServer
   
   # Find the multiples of the give prime number that are less than the 
   # given maximum.
@@ -27,18 +27,6 @@ class PrimeHelper
     2.upto((maximum - 1) / prime) { |i| a << (i * prime) }
     a
   end
-  
-  # Stop the DRb service
-  def stop_service
-    DRb.stop_service
-  end
 end
 
-machine = 'localhost'
-machine = ARGV[0] unless ARGV.length < 1
-port = 9000
-port = ARGV[1] unless ARGV.length < 2
-server = PrimeHelper.new
-server.name = "druby://#{machine}:#{port}"
-DRb.start_service(server.name, server)
-DRb.thread.join
+DrbmanServer.start_service(PrimeHelper)
