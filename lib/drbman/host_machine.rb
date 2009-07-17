@@ -73,6 +73,8 @@ class HostMachine
         connect
       end
       yield self
+    rescue Net::SSH::AuthenticationFailed => e
+      @logger.error { "Authentication Failed" }
     rescue Exception => e
       @logger.error { e }
       @logger.error { e.backtrace.join("\n") }
