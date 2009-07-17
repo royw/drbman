@@ -12,6 +12,29 @@ Drbman provides:
 
 An article on using drbman is available at: http://royw.wordpress.com/2009/07/15/a-manager-for-drb/
 
+In a nut shell, write your drb server object then add:
+
+  require 'drbman_server'
+  
+  class YourServer
+    include DrbmanServer
+    ...
+  end
+  DrbmanServer.start_service(YourServer)
+
+
+Next in your client app set up: choices[:hosts], choices[:dirs], choices[:run], choices[:gems]
+
+Then create a Drbman instance and use it:
+
+  Drbman.new(@logger, choices) do |drbman|
+    loop do
+      drbman.get_object do |your_drb_server|
+        your_drb_server.your_method
+      end
+    end
+  end
+
 == Installation
 
 sudo gem install royw-drbman --source http://gems.github.com
