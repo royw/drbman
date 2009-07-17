@@ -41,6 +41,7 @@ Gem::Specification.new do |s|
      "lib/drbman/cli.rb",
      "lib/drbman/drb_pool.rb",
      "lib/drbman/drbman.rb",
+     "lib/drbman/errors.rb",
      "lib/drbman/host_machine.rb",
      "spec/drbman_spec.rb",
      "spec/host_machine_spec.rb",

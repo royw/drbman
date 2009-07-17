@@ -3,7 +3,7 @@ $:.unshift(File.dirname(__FILE__)) unless
 
 require 'rubygems'
 
-# gem 'ruby-debug',       '>=0.10.3'
+gem 'ruby-debug',       '>=0.10.3'
 gem 'log4r',            '>=1.0.5'
 gem 'user-choices',     '>=1.1.6'
 gem 'extlib',           '>=0.9.12'
@@ -13,7 +13,7 @@ gem 'daemons',          '>=1.0.10'
 gem 'uuidtools',        '>=2.0.0'
 
 require 'extlib'
-# require 'ruby-debug'
+require 'ruby-debug'
 require 'log4r'
 require 'user-choices'
 require 'net/ssh'

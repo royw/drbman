@@ -57,6 +57,18 @@ class HostMachine
     @logger.debug { self.pretty_inspect }
   end
   
+  def alive?
+    result = true
+    begin
+      session do |host|
+        host.sh('ls')
+      end
+    rescue Exception
+      @logger.warn { "#{@name} is not responding" }
+      result = false
+    end
+  end
+  
   # Connect to the host, execute the given block, then disconnect from the host
   # @yield [HostMachine]
   # @example
@@ -74,10 +86,7 @@ class HostMachine
       end
       yield self
     rescue Net::SSH::AuthenticationFailed => e
-      @logger.error { "Authentication Failed" }
-    rescue Exception => e
-      @logger.error { e }
-      @logger.error { e.backtrace.join("\n") }
+      @logger.error { "Authentication Failed for #{e}" }
       raise e
     ensure
       disconnect
@@ -171,8 +180,16 @@ class HostMachine
         })
       options = @password.merge({:verbose=>Logger::DEBUG}) if @choices[:ssh_debug]
       @logger.debug { "connect: @machine=>#{@machine}, @user=>#{@user}, options=>#{options.inspect}" }
-      @ssh = Net::SSH.start(@machine, @user, options)
-      # @ssh.forward.local(@port, @machine, @port)
+      begin
+        @ssh = Net::SSH.start(@machine, @user, options)
+        # @ssh.forward.local(@port, @machine, @port)
+      rescue Net::SSH::AuthenticationFailed
+        @ssh = nil
+        raise Net::SSH::AuthenticationFailed.new(@name)
+      rescue Exception => e
+        @ssh = nil
+        raise e
+      end
     end
   end
   

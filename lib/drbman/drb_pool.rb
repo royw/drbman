@@ -21,9 +21,11 @@ class DrbPool
     mutex = Mutex.new
     hosts.each do |host_name, host_machine|
       threads << Thread.new(host_machine) do |host|
-        obj = get_drb_object(host.machine, host.port)
-        mutex.synchronize do
-          @objects << obj
+        if host.alive?
+          obj = get_drb_object(host.machine, host.port)
+          mutex.synchronize do
+            @objects << obj
+          end
         end
       end
     end
@@ -40,6 +42,7 @@ class DrbPool
   # @example Usage
   #   pool.get_object {|obj| obj.do_something}
   def get_object(&block)
+    raise EmptyDrbPoolError.new("No drb servers available") if @objects.empty?
     mutex = Mutex.new
     while((object = next_object(mutex)).nil?)
       sleep 0.1 

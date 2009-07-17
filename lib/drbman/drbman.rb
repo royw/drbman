@@ -51,7 +51,8 @@ class Drbman
     port = @user_choices[:port]
     @user_choices[:hosts].each do |host|
       host = "#{host}:#{port}" unless host =~ /\:\d+\s*$/
-      @hosts[host] = HostMachine.new(host, @logger, @user_choices)
+      host_machine = HostMachine.new(host, @logger, @user_choices)
+      @hosts[host] = host_machine if host_machine.alive?  # don't use off-line host machines
       port += 1
     end
     
@@ -60,6 +61,8 @@ class Drbman
         setup
         @pool = DrbPool.new(@hosts, @logger)
         block.call(self)
+      rescue EmptyDrbPoolError, EnvironmentError => e
+        @logger.error { e }
       rescue Exception => e
         @logger.error { e }
         @logger.debug { e.backtrace.join("\n") }
@@ -85,9 +88,11 @@ class Drbman
   def setup
     threads = []
     @hosts.each do |name, machine|
-      threads << Thread.new(machine) do |host_machine|
-        host_machine.session do |host|
-          startup(host)
+      if machine.alive?  # no need to thread if the machine is off-line
+        threads << Thread.new(machine) do |host_machine|
+          host_machine.session do |host|
+            startup(host)
+          end
         end
       end
     end
@@ -149,7 +154,7 @@ class Drbman
   def stop_drb_server(host)
     case host.sh("cd #{host.dir};ruby #{host.controller} stop")
     when /command not found/
-      raise Exception.new "Ruby is not installed on #{host.name}"
+      raise EnvironmentError.new "Ruby is not installed on #{host.name}"
     end
   end
   
@@ -160,7 +165,7 @@ class Drbman
     unless host.controller.blank?
       case host.sh("cd #{host.dir};ruby #{host.controller} start -- #{host.machine} #{host.port}")
       when /command not found/
-        raise Exception.new "Ruby is not installed on #{host.name}"
+        raise EnvironmentError.new "Ruby is not installed on #{host.name}"
       end
     end
   end
@@ -208,11 +213,11 @@ class Drbman
       when /false/i
         missing_gems << gem_name
       when /command not found/
-        raise Exception.new "Rubygems is not installed on #{host.name}"
+        raise EnvironmentError.new "Rubygems is not installed on #{host.name}"
       end
     end
     unless missing_gems.empty?
-      raise Exception.new "The following gems are not installed on #{host.name}: #{missing_gems.join(', ')}"
+      raise EnvironmentError.new "The following gems are not installed on #{host.name}: #{missing_gems.join(', ')}"
     end
   end
 
