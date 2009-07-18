@@ -4,6 +4,17 @@ require 'primes'
 # Note, these assume you have an ssh public key set up for
 # this box (i.e: it does an "ssh localhost").
 
+def env_ok
+  result = !(ENV['TEST_HOST'].nil? || ENV['TEST_USER'].nil? || ENV['TEST_PASSWORD'].nil?)
+  unless result
+    puts
+    puts "You need to setup the following environment variables: TEST_HOST, TEST_USER, TEST_PASSWORD"
+    puts "Alternatively run spec like:  TEST_HOST='box' TEST_USER='who' TEST_PASSWORD='sekret' spec spec/primes_spec.rb"
+    puts
+  end
+  result
+end
+
 describe('SieveOfEratosthenes') do
   before(:each) do
     @choices = {}
@@ -81,13 +92,3 @@ describe('SieveOfEratosthenes') do
   
 end
 
-def env_ok
-  result = !(ENV['TEST_HOST'].nil? || ENV['TEST_USER'].nil? || ENV['TEST_PASSWORD'].nil?)
-  unless result
-    puts
-    puts "You need to setup the following environment variables: TEST_HOST, TEST_USER, TEST_PASSWORD"
-    puts "Alternatively run spec like:  TEST_HOST='box' TEST_USER='who' TEST_PASSWORD='sekret' spec spec/primes_spec.rb"
-    puts
-  end
-  result
-end
