@@ -74,8 +74,18 @@ class DrbPool
   def next_object(mutex)
     object = nil
     mutex.synchronize do
-      object = @objects.select {|obj| !obj.in_use?}.first
-      object.in_use = true unless object.nil?
+      @objects.select {|obj| !obj.in_use?}.each do |obj|
+        unless obj.nil?
+          begin
+            obj.name # make sure we can still talk with drb server
+            obj.in_use = true 
+            object = obj
+            break
+          rescue
+            object = nil
+          end
+        end
+      end
     end
     object
   end
