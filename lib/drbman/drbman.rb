@@ -15,7 +15,8 @@
 class Drbman
   # @param [Logger] logger the logger
   # @param [UserChoices,Hash] choices
-  # @option choices [Array<String>] :dirs array of local directories to copy to the host machines (REQUIRED).
+  # @option choices [Hash<String,String>] :dirs hash of local directories to copy to the host 
+  #   machines where key is local source and value is directory on host machine - REQUIRED.
   # @option choices [String] :run the name of the file to run on the host machine (REQUIRED).
   #  This file should start the drb server.  Note, this file will be daemonized before running.
   # @option choices [Array<String>] :hosts (['localhost']) array of host machine descriptions "{user{:password}@}machine{:port}".
@@ -192,12 +193,12 @@ class Drbman
   def upload_dirs(host)
     unless @user_choices[:dirs].blank?
       drb_server_file = File.join(File.dirname(__FILE__), "../drb_server/drbman_server.rb")
-      @user_choices[:dirs].each do |name|
-        if File.directory?(name)
-          host.upload(name, "#{host.dir}/#{File.basename(name)}")
-          host.upload(drb_server_file, "#{host.dir}/#{File.basename(name)}")
+      @user_choices[:dirs].each do |src,dest|
+        if File.directory?(src)
+          host.upload(src, "#{host.dir}/#{dest}")
+          host.upload(drb_server_file, "#{host.dir}/#{dest}/drbman_server.rb")
         else
-          @logger.error { "\"#{name}\" is not a directory" }
+          @logger.error { "\"#{src}\" is not a directory" }
         end
       end
     end

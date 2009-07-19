@@ -5,14 +5,14 @@ class SieveOfEratosthenes
 
   # Use the Sieve of Eratosthenes to find prime numbers
   #
-  # @param [Integer] maximum find all primes lower than this maximum value
-  # @option choices [Array<String>] :dirs array of local directories to copy to the host machines.  REQUIRED
-  # @option choices [String] :run the name of the file to run on the host machine.  REQUIRED
+  # @param [Integer] maximum find all primes lower than this maximum value - REQUIRED.
+  # @option choices [Hash<String,String>] :dirs hash of local directories to copy to the host 
+  #   machines where key is local source and value is directory on host machine - REQUIRED.
+  # @option choices [String] :run the name of the file to run on the host machine - REQUIRED.
   #  This file should start the drb server.  Note, this file will be daemonized before running.
-  # @option choices [Array<String>] :hosts array of host machine descriptions "{user{:password}@}machine{:port}"
-  #  This defaults to ['localhost']
-  # @option choices [Integer] :port default port number used to assign to hosts without a port number.
-  #  The port number is incremented for each host.  This defaults to 9000
+  # @option choices [Array<String>] :hosts (['localhost']) array of host machine descriptions "{user{:password}@}machine{:port}".
+  # @option choices [Integer] :port (9000) default port number used to assign to hosts without a port number,
+  #  the port number is incremented for each host.
   # @option choices [Array<String>] :gems array of gem names to verify are installed on the host machine.
   #  Note, 'daemons' is always added to this array.
   # @param [Logger] logger the logger to use
@@ -25,7 +25,7 @@ class SieveOfEratosthenes
     @choices[:hosts] = ['localhost'] if @choices[:hosts].blank?
     
     # specify the directories to copy to the host machine
-    @choices[:dirs] = [File.join(File.dirname(__FILE__), '../drb_server')]
+    @choices[:dirs] = {File.join(File.dirname(__FILE__), '../drb_server') => 'drb_server'}
 
     # set the file to be ran that contains the drb server
     @choices[:run] = 'drb_server/prime_helper.rb' if @choices[:run].blank?

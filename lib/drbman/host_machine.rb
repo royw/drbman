@@ -111,6 +111,7 @@ class HostMachine
         @ssh.loop
       rescue Exception => e
         # only raise the exception if the files differ
+        @logger.debug { e }
         raise e unless same_files?(local_src, remote_dest)
       end
     end
